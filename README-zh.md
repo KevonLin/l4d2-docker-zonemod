@@ -29,10 +29,10 @@
 
 ```bash
 # 赋予执行权限
-chmod +x build-l4d2.sh
+chmod +x *.sh
 
 # 构建镜像
-./build-l4d2.sh
+sudo ./build-l4d2.sh
 ```
 
 ### 2. 启动服务器

@@ -1,5 +1,7 @@
 FROM rockylinux/rockylinux:9-minimal AS base
 
+USER root
+
 ADD as-root.sh .
 RUN ./as-root.sh
 

@@ -29,10 +29,10 @@ This is a containerized Docker solution for quickly deploying a dedicated Left 4
 
 ```bash
 # Grant execution permissions
-chmod +x build-l4d2.sh
+chmod +x *.sh
 
 # Build image
-./build-l4d2.sh
+sudo ./build-l4d2.sh
 ```
 
 ### 2. Start Server

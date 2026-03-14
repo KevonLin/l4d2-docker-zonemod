@@ -2,7 +2,7 @@ FROM rockylinux/rockylinux:9-minimal AS base
 
 USER root
 
-ADD as-root.sh .
+COPY --chmod=755 as-root.sh .
 RUN ./as-root.sh
 
 WORKDIR /home/louis
@@ -15,13 +15,13 @@ ARG GAME_ID=222860 \
 
 EXPOSE 27015/tcp 27015/udp
 
-ADD as-user.sh .
+COPY --chmod=755 as-user.sh .
 RUN ./as-user.sh
 
 VOLUME ["/addons", "/cfg", "/scripts"]
 
-ADD install-plugins.sh .
+COPY --chmod=755 install-plugins.sh .
 RUN ./install-plugins.sh
 
-ADD entrypoint.sh .
+COPY --chmod=755 entrypoint.sh .
 ENTRYPOINT ["./entrypoint.sh"]

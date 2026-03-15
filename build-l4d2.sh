@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build --progress plain -t zonemod/l4d2 .
+docker build --progress plain -t kevonlin/l4d2 .

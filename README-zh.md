@@ -6,9 +6,8 @@
 
 ## 系统要求
 
-- Linux 系统（推荐 Ubuntu/Debian/CentOS）
+- Linux 系统
 - Docker 和 Docker Compose
-- 至少 10GB 可用磁盘空间
 - 稳定的网络连接
 
 ## 文件结构
@@ -48,15 +47,16 @@ docker-compose up -d
 
 在 `compose.yml` 中可配置以下环境变量：
 
-| 变量名        | 默认值        | 说明                                  |
-| ------------- | ------------- | ------------------------------------- |
-| `PORT`        | 27015         | 游戏服务器端口                        |
-| `DEFAULT_MAP` | c2m1_highway  | 默认地图                              |
-| `MAXPLAYERS`  | -             | 最大玩家数（不设置则使用默认）        |
-| `TICKRATE`    | 100           | 服务器刷新率（如更改需修改server.cfg) |
-| `TZ`          | Asia/Shanghai | 时区设置                              |
-| `IP`          | 0.0.0.0       | 绑定IP地址                            |
-| `EXEC_CFG`    | server.cfg    | 服务器配置文件                        |
+| 变量名         | 默认值        | 说明                                  |
+| -------------- | ------------- | ------------------------------------- |
+| `PORT`         | 27015         | 游戏服务器端口                        |
+| `DEFAULT_MAP`  | c2m1_highway  | 默认地图                              |
+| `MAXPLAYERS`   | -             | 最大玩家数（不设置则使用默认）        |
+| `TICKRATE`     | 100           | 服务器刷新率（如更改需修改server.cfg) |
+| `TZ`           | Asia/Shanghai | 时区设置                              |
+| `IP`           | 0.0.0.0       | 绑定IP地址                            |
+| `EXEC_CFG`     | server.cfg    | 服务器配置文件                        |
+| SSH_PUBLIC_KEY | -             | SSH公钥                               |
 
 ### 数据持久化
 

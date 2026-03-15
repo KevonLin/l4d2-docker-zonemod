@@ -6,9 +6,8 @@ This is a containerized Docker solution for quickly deploying a dedicated Left 4
 
 ## System Requirements
 
-- Linux system (Ubuntu/Debian/CentOS recommended)
+- Linux system
 - Docker and Docker Compose
-- At least 10GB available disk space
 - Stable network connection
 
 ## File Structure
@@ -57,6 +56,7 @@ The following environment variables can be configured in `compose.yml`:
 | `TZ`          | Asia/Shanghai | Timezone setting                                             |
 | `IP`          | 0.0.0.0       | Bind IP address                                              |
 | `EXEC_CFG`    | server.cfg    | Server configuration file                                    |
+|               | -             | Your SSH Public Key                                          |
 
 ### Data Persistence
 

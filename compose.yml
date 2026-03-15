@@ -8,7 +8,7 @@ networks:
 
 services:
   l4d2:
-    image: zonemod/l4d2:latest
+    image: kevonlin/l4d2:latest
     container_name: l4d2
     ports:
       - "27015:27015"
@@ -16,6 +16,7 @@ services:
     environment:
       PORT: 27015
       TZ: Asia/Shanghai
+      SSH_PUBLIC_KEY: yoursshpublickey
     volumes:
       - addons:/addons
       - cfg:/cfg

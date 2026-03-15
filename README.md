@@ -6,9 +6,8 @@ This is a containerized Docker solution for quickly deploying a dedicated Left 4
 
 ## System Requirements
 
-- Linux system (Ubuntu/Debian/CentOS recommended)
+- Linux system
 - Docker and Docker Compose
-- At least 10GB available disk space
 - Stable network connection
 
 ## File Structure
@@ -48,15 +47,16 @@ docker-compose up -d
 
 The following environment variables can be configured in `compose.yml`:
 
-| Variable      | Default Value | Description                                                  |
-| ------------- | ------------- | ------------------------------------------------------------ |
-| `PORT`        | 27015         | Game server port                                             |
-| `DEFAULT_MAP` | c2m1_highway  | Default map                                                  |
-| `MAXPLAYERS`  | -             | Maximum players (default if not set)                         |
-| `TICKRATE`    | 100           | Server tickrate (requires server.cfg modification if changed) |
-| `TZ`          | Asia/Shanghai | Timezone setting                                             |
-| `IP`          | 0.0.0.0       | Bind IP address                                              |
-| `EXEC_CFG`    | server.cfg    | Server configuration file                                    |
+| Variable       | Default Value | Description                                                  |
+| -------------- | ------------- | ------------------------------------------------------------ |
+| `PORT`         | 27015         | Game server port                                             |
+| `DEFAULT_MAP`  | c2m1_highway  | Default map                                                  |
+| `MAXPLAYERS`   | -             | Maximum players (default if not set)                         |
+| `TICKRATE`     | 100           | Server tickrate (requires server.cfg modification if changed) |
+| `TZ`           | Asia/Shanghai | Timezone setting                                             |
+| `IP`           | 0.0.0.0       | Bind IP address                                              |
+| `EXEC_CFG`     | server.cfg    | Server configuration file                                    |
+| SSH_PUBLIC_KEY | -             | Your SSH Public Key                                          |
 
 ### Data Persistence
 

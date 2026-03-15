@@ -47,16 +47,16 @@ docker-compose up -d
 
 The following environment variables can be configured in `compose.yml`:
 
-| Variable       | Default Value | Description                                                  |
-| -------------- | ------------- | ------------------------------------------------------------ |
-| `PORT`         | 27015         | Game server port                                             |
-| `DEFAULT_MAP`  | c2m1_highway  | Default map                                                  |
-| `MAXPLAYERS`   | -             | Maximum players (default if not set)                         |
-| `TICKRATE`     | 100           | Server tickrate (requires server.cfg modification if changed) |
-| `TZ`           | Asia/Shanghai | Timezone setting                                             |
-| `IP`           | 0.0.0.0       | Bind IP address                                              |
-| `EXEC_CFG`     | server.cfg    | Server configuration file                                    |
-| SSH_PUBLIC_KEY | -             | Your SSH Public Key                                          |
+| Variable      | Default Value | Description                                                  |
+| ------------- | ------------- | ------------------------------------------------------------ |
+| `PORT`        | 27015         | Game server port                                             |
+| `DEFAULT_MAP` | c2m1_highway  | Default map                                                  |
+| `MAXPLAYERS`  | -             | Maximum players (default if not set)                         |
+| `TICKRATE`    | 100           | Server tickrate (requires server.cfg modification if changed) |
+| `TZ`          | Asia/Shanghai | Timezone setting                                             |
+| `IP`          | 0.0.0.0       | Bind IP address                                              |
+| `EXEC_CFG`    | server.cfg    | Server configuration file                                    |
+|               | -             | Your SSH Public Key                                          |
 
 ### Data Persistence
 

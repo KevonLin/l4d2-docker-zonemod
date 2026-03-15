@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 cd /home/louis
 
@@ -12,7 +12,10 @@ if [ ! -f steamcmd.sh ]; then
 fi
 
 echo ">>> Initializing steamcmd..."
-./steamcmd.sh +quit
+if ! ./steamcmd.sh +quit; then
+    echo "ERROR: steamcmd initialization failed." >&2
+    exit 1
+fi
 
 INSTALL_DIR="${INSTALL_DIR:-l4d2}"
 GAME_DIR="${INSTALL_DIR}/left4dead2"
@@ -29,16 +32,27 @@ echo """force_install_dir "/home/louis/${INSTALL_DIR}"
 login anonymous
 app_update ${GAME_ID}
 quit""" > update.txt
+
 if [ "${INSTALL_DIR}" = "l4d2" ]; then
-  # https://github.com/ValveSoftware/steam-for-linux/issues/11522
-  echo """force_install_dir "/home/louis/${INSTALL_DIR}"
-  login anonymous
-  @sSteamCmdForcePlatformType windows
-  app_update ${GAME_ID}
-  @sSteamCmdForcePlatformType linux
-  app_update ${GAME_ID} validate
-  quit""" > first-install-l4d2.txt
-  ./steamcmd.sh +runscript first-install-l4d2.txt
+    echo """force_install_dir "/home/louis/${INSTALL_DIR}"
+    login anonymous
+    @sSteamCmdForcePlatformType windows
+    app_update ${GAME_ID}
+    @sSteamCmdForcePlatformType linux
+    app_update ${GAME_ID} validate
+    quit""" > first-install-l4d2.txt
+
+    echo ">>> Installing L4D2 (first install, may take a while)..."
+    if ! ./steamcmd.sh +runscript first-install-l4d2.txt; then
+        echo "ERROR: steamcmd failed to download/update the game (AppID: ${GAME_ID})." >&2
+        exit 1
+    fi
 else
-  ./steamcmd.sh +runscript update.txt
+    echo ">>> Installing/updating game (AppID: ${GAME_ID})..."
+    if ! ./steamcmd.sh +runscript update.txt; then
+        echo "ERROR: steamcmd failed to download/update the game (AppID: ${GAME_ID})." >&2
+        exit 1
+    fi
 fi
+
+echo ">>> Game installation completed successfully."

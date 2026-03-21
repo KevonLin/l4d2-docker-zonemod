@@ -2,6 +2,19 @@
 set -e
 
 if [ "$(id -u)" -eq 0 ]; then
+    if [ -n "$TZ" ]; then
+        ZONEINFO="/usr/share/zoneinfo/$TZ"
+        if [ -f "$ZONEINFO" ]; then
+            ln -sf "$ZONEINFO" /etc/localtime
+            echo "$TZ" > /etc/timezone
+            dpkg-reconfigure -f noninteractive tzdata 2>/dev/null || true
+        else
+            echo "Warning: Timezone $TZ not found in /usr/share/zoneinfo. Keeping default." >&2
+        fi
+    else
+        echo "No TZ environment variable set. Using container default timezone." >&2
+    fi
+
     if [ -n "$SSH_PUBLIC_KEY" ]; then
         echo "Setting up SSH public key for user louis..."
         mkdir -p /home/louis/.ssh
@@ -13,7 +26,8 @@ if [ "$(id -u)" -eq 0 ]; then
 
     echo "Starting SSH daemon..."
     /usr/sbin/sshd -D &
-    exec sudo -E -u louis "$0" "$@"
+
+    exec gosu louis "$0" "$@"
 fi
 
 : "${DEFAULT_MAP:=c2m1_highway}"

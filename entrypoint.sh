@@ -1,6 +1,24 @@
 #!/bin/bash
 set -e
 
+install_plugins_if_needed() {
+    if [ ! -d /addons/sourcemod ]; then
+        echo "Plugins not found. Installing L4D2 Competitive Rework plugins..."
+        TEMP_DIR=$(mktemp -d)
+        cd "$TEMP_DIR"
+        git clone https://github.com/SirPlease/L4D2-Competitive-Rework.git
+        cp -r L4D2-Competitive-Rework/addons/* /addons/
+        cp -r L4D2-Competitive-Rework/cfg/* /cfg/
+        cp -r L4D2-Competitive-Rework/scripts/* /scripts/
+        cd /
+        rm -rf "$TEMP_DIR"
+        chown -R louis:louis /addons /cfg /scripts
+        echo "Plugins installed successfully."
+    else
+        echo "Plugins already present, skipping installation."
+    fi
+}
+
 if [ "$(id -u)" -eq 0 ]; then
     if [ -n "$TZ" ]; then
         ZONEINFO="/usr/share/zoneinfo/$TZ"
@@ -23,6 +41,8 @@ if [ "$(id -u)" -eq 0 ]; then
         chmod 600 /home/louis/.ssh/authorized_keys
         chown -R louis:louis /home/louis/.ssh
     fi
+
+    install_plugins_if_needed
 
     echo "Starting SSH daemon..."
     /usr/sbin/sshd -D &

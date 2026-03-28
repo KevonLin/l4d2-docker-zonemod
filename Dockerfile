@@ -16,9 +16,6 @@ ARG GAME_ID=222860 \
 COPY --chmod=755 as-user.sh .
 RUN ./as-user.sh
 
-COPY --chmod=755 install-plugins.sh .
-RUN ./install-plugins.sh
-
 USER root
 
 EXPOSE 27015/tcp 27015/udp

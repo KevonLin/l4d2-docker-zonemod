@@ -1,5 +1,7 @@
 # Left 4 Dead 2 Server Docker Deployment Guide
 
+## English | [简体中文](./README-zh.md)
+
 ## Project Overview
 
 This is a containerized Docker solution for quickly deploying a dedicated Left 4 Dead 2 (L4D2) server. The project includes complete server configuration, plugin system, and one-click deployment functionality.
@@ -56,7 +58,7 @@ The following environment variables can be configured in `compose.yml`:
 | `TZ`          | Asia/Shanghai | Timezone setting                                             |
 | `IP`          | 0.0.0.0       | Bind IP address                                              |
 | `EXEC_CFG`    | server.cfg    | Server configuration file                                    |
-|               | -             | Your SSH Public Key                                          |
+| `SSH_PUBLIC_KEY`    | -             | Your SSH Public Key                                          |
 
 ### Data Persistence
 

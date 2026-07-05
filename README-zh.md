@@ -1,5 +1,7 @@
 # Left 4 Dead 2 服务器 Docker 部署指南
 
+## [English](./README.md) | 简体中文
+
 ## 项目概述
 
 这是一个用于快速部署 Left 4 Dead 2 (L4D2) 专用服务器的 Docker 容器化解决方案。项目包含完整的服务器配置、插件系统和一键部署功能。
@@ -56,7 +58,7 @@ docker-compose up -d
 | `TZ`           | Asia/Shanghai | 时区设置                              |
 | `IP`           | 0.0.0.0       | 绑定IP地址                            |
 | `EXEC_CFG`     | server.cfg    | 服务器配置文件                        |
-| SSH_PUBLIC_KEY | -             | SSH公钥                               |
+| `SSH_PUBLIC_KEY` | -             | SSH公钥                               |
 
 ### 数据持久化
 

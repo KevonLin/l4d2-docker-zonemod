@@ -10,11 +10,11 @@ USER louis
 
 FROM base AS game
 
-ARG GAME_ID=222860 \
-    INSTALL_DIR="l4d2"
-
+# as-user.sh is copied but NOT executed at build time.
+# Game installation now happens at container startup (see entrypoint.sh),
+# so the image stays small and the game binaries are never baked in.
 COPY --chmod=755 as-user.sh .
-RUN ./as-user.sh
+COPY --chmod=755 entrypoint.sh .
 
 USER root
 

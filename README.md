@@ -17,7 +17,7 @@ This is a containerized Docker solution for quickly deploying a dedicated Left 4
 ```
 .
 ├── as-root.sh          # Docker container initialization script (root privileges)
-├── as-user.sh         # SteamCMD and game installation script
+├── as-user.sh         # Game installer, runs at CONTAINER STARTUP via entrypoint.sh (not baked into the image)
 ├── build-l4d2.sh      # Docker image build script
 ├── entrypoint.sh      # Container entrypoint script
 ├── compose.yml        # Docker Compose configuration file
@@ -42,6 +42,8 @@ sudo ./build-l4d2.sh
 # Start using Docker Compose
 docker-compose up -d
 ```
+
+> **Note:** The game is **not** installed at build time. On the first container start, `as-user.sh` downloads and installs L4D2 via SteamCMD (this can take a while and requires a stable network connection). Subsequent starts only update/validate the existing install. The downloaded game lives in the container's writable layer, so be aware it is not persisted by the `/addons`, `/cfg`, `/scripts` volumes.
 
 ## Configuration
 

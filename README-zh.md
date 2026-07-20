@@ -17,7 +17,7 @@
 ```
 .
 ├── as-root.sh          # Docker 容器初始化脚本（root 权限）
-├── as-user.sh         # SteamCMD 和游戏安装脚本
+├── as-user.sh         # 游戏安装脚本，在容器启动时（由 entrypoint.sh 调用）执行，不会打包进镜像
 ├── build-l4d2.sh      # Docker 镜像构建脚本
 ├── entrypoint.sh      # 容器入口点脚本
 ├── compose.yml        # Docker Compose 配置文件
@@ -42,6 +42,8 @@ sudo ./build-l4d2.sh
 # 使用 Docker Compose 启动
 docker-compose up -d
 ```
+
+> **注意**：游戏**不会**在构建镜像时安装。首次启动容器时，`as-user.sh` 会通过 SteamCMD 下载并安装 L4D2（耗时较长，且需要稳定的网络连接）。之后启动时只会更新/校验已有的安装。下载的游戏存放在容器的可写层中，请注意它不会被 `/addons`、`/cfg`、`/scripts` 这些卷持久化。
 
 ## 配置说明
 

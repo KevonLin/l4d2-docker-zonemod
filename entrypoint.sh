@@ -60,8 +60,10 @@ fi
 
 GAME_ID=222860
 INSTALL_DIR="l4d2"
+export GAME_ID INSTALL_DIR
 
-./steamcmd.sh +runscript update.txt
+# Install/update the game at container startup (it is no longer baked into the image).
+as-user.sh
 
 cd "${INSTALL_DIR}" || exit 50
 

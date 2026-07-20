@@ -11,6 +11,9 @@ cd /home/louis
 GAME_ID="${GAME_ID:-222860}"
 INSTALL_DIR="${INSTALL_DIR:-l4d2}"
 
+# Defensive: make sure the install directory exists and is writable.
+mkdir -p "${INSTALL_DIR}"
+
 mkdir -p .steam/sdk32
 ln -sf ~/linux32/steamclient.so .steam/sdk32/steamclient.so
 

@@ -19,7 +19,6 @@ COPY --chmod=755 entrypoint.sh .
 USER root
 
 EXPOSE 27015/tcp 27015/udp
-VOLUME ["/addons", "/cfg", "/scripts"]
+VOLUME ["/addons", "/cfg", "/scripts", "/home/louis/l4d2"]
 
-COPY --chmod=755 entrypoint.sh .
 ENTRYPOINT ["./entrypoint.sh"]

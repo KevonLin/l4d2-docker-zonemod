@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Runtime-configurable values (override via environment / compose).
+: "${GAME_ID:=222860}"
+: "${INSTALL_DIR:=l4d2}"
+export GAME_ID INSTALL_DIR
+
 install_plugins_if_needed() {
     if [ ! -d /addons/sourcemod ]; then
         echo "Plugins not found. Installing L4D2 Competitive Rework plugins..."
@@ -42,6 +47,12 @@ if [ "$(id -u)" -eq 0 ]; then
         chown -R louis:louis /home/louis/.ssh
     fi
 
+    # Ensure the game install directory exists and is writable by the unprivileged
+    # "louis" user. This matters whether the directory is a named volume or a
+    # bind mount (for a bind mount this also chowns the host directory to UID 1000).
+    mkdir -p "/home/louis/${INSTALL_DIR}"
+    chown louis:louis "/home/louis/${INSTALL_DIR}"
+
     install_plugins_if_needed
 
     echo "Starting SSH daemon..."
@@ -58,12 +69,10 @@ fi
 : "${TICKRATE:=100}"
 : "${EXEC_CFG:=server.cfg}"
 
-GAME_ID=222860
-INSTALL_DIR="l4d2"
-export GAME_ID INSTALL_DIR
-
 # Install/update the game at container startup (it is no longer baked into the image).
-as-user.sh
+# The game is stored under /home/louis/${INSTALL_DIR}, which should be mounted as a
+# volume/bind mount so it survives container recreation.
+./as-user.sh
 
 cd "${INSTALL_DIR}" || exit 50
 

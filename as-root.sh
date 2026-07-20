@@ -30,8 +30,8 @@ mkdir -p /var/run/sshd
 
 useradd -m -s /bin/bash louis
 
-mkdir -p /addons /cfg /scripts /motd /tmp/dumps
-chown louis:louis /addons /cfg /scripts /motd /tmp/dumps
+mkdir -p /addons /cfg /scripts /motd /tmp/dumps /home/louis/l4d2
+chown louis:louis /addons /cfg /scripts /motd /tmp/dumps /home/louis/l4d2
 
 mkdir -p /home/louis/.ssh
 chown louis:louis /home/louis/.ssh

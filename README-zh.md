@@ -4,77 +4,130 @@
 
 ## 项目概述
 
-这是一个用于快速部署 Left 4 Dead 2 (L4D2) 专用服务器的 Docker 容器化解决方案。项目包含完整的服务器配置、插件系统和一键部署功能。
+这是一个用于快速部署 Left 4 Dead 2 (L4D2) 专用服务器的 Docker 容器化解决方案，
+内置完整的服务器配置、插件系统和一键部署能力。
 
-## 系统要求
+核心设计：
 
-- Linux 系统
-- Docker 和 Docker Compose
-- 稳定的网络连接
+- **游戏在容器启动时安装，而不是打包进镜像。** 镜像体积很小；首次启动时
+  `as-user.sh` 通过 SteamCMD 下载并安装 L4D2，之后每次启动仅做更新/校验。
+- **游戏数据持久化。** 安装目录以卷（volume）或绑定挂载（bind mount）方式挂载，
+  因此这个几十 GB 的下载在容器重建后依然保留。
+
+## 工作原理
+
+1. `as-root.sh`（在**构建时**运行）安装系统依赖、`gosu`，创建非特权用户
+   `louis`，并准备好各挂载点。
+2. 构建出的镜像**不包含**游戏本体。
+3. 在**容器启动时**，`entrypoint.sh` 会：
+   - （以 root）设置时区、写入你的 SSH 公钥、确保游戏目录归 `louis` 所有、
+     首次运行时安装插件、启动 SSH 服务；
+   - （以 `louis`）运行 `as-user.sh` 安装/更新游戏，然后启动 `srcds_run`。
 
 ## 文件结构
 
 ```
 .
-├── as-root.sh          # Docker 容器初始化脚本（root 权限）
-├── as-user.sh         # 游戏安装脚本，在容器启动时（由 entrypoint.sh 调用）执行，不会打包进镜像
-├── build-l4d2.sh      # Docker 镜像构建脚本
-├── entrypoint.sh      # 容器入口点脚本
-├── compose.yml        # Docker Compose 配置文件
-└── install-plugins.sh # 插件安装脚本
+├── as-root.sh          # 构建期系统初始化脚本（root 权限）
+├── as-user.sh         # 游戏安装脚本，在容器启动时（由 entrypoint.sh 调用）执行
+├── build-l4d2.sh       # Docker 镜像构建辅助脚本
+├── entrypoint.sh       # 容器入口点脚本（root -> louis）
+├── install-plugins.sh  # （旧）独立插件安装脚本
+├── compose.yml         # 样本：使用 Docker 命名卷部署
+├── compose.bind.yml    # 样本：使用主机绑定挂载部署
+└── README.md           # 英文文档
 ```
 
 ## 快速开始
 
-### 1. 构建 Docker 镜像
+### 1. 构建镜像
 
 ```bash
-# 赋予执行权限
 chmod +x *.sh
-
-# 构建镜像
-sudo ./build-l4d2.sh
+sudo ./build-l4d2.sh      # 构建 kevonlin/l4d2:latest
 ```
 
-### 2. 启动服务器
+### 2. 部署
+
+选择下面两种部署方式之一，然后启动服务器：
 
 ```bash
-# 使用 Docker Compose 启动
-docker-compose up -d
+# 命名卷方式（推荐）
+docker compose -f compose.yml up -d
+
+# 主机绑定挂载方式
+docker compose -f compose.bind.yml up -d
 ```
 
-> **注意**：游戏**不会**在构建镜像时安装。首次启动容器时，`as-user.sh` 会通过 SteamCMD 下载并安装 L4D2（耗时较长，且需要稳定的网络连接）。之后启动时只会更新/校验已有的安装。下载的游戏存放在容器的可写层中，请注意它不会被 `/addons`、`/cfg`、`/scripts` 这些卷持久化。
+> **注意**：游戏**不会**打包进镜像。首次启动容器时，`as-user.sh` 会通过
+> SteamCMD 下载并安装 L4D2（耗时较长，需要稳定的网络连接）。之后启动只会
+> 更新/校验已有的安装。
+
+## 部署方式
+
+两个样本暴露的服务器完全一致，区别仅在于数据如何存储。
+
+### A. 命名卷（`compose.yml`）—— 推荐
+
+数据存放在 Docker 管理的卷中。最简单，无需管理主机路径。数据在
+`docker compose down` / `up` 后仍保留；使用 `docker compose down -v` 可清空数据。
+
+### B. 绑定挂载（`compose.bind.yml`）
+
+数据存放在 compose 文件同级目录下（`l4d2/`、`addons/`、`cfg/`、`scripts/`），
+方便你在主机上直接查看/编辑文件。首次启动会自动创建这些目录，并且游戏目录
+会被赋予 UID 1000（`louis`）所有权；插件安装步骤也会把 `/addons`、`/cfg`、
+`/scripts` 同样改为 UID 1000 所有。
 
 ## 配置说明
 
 ### 环境变量
 
-在 `compose.yml` 中可配置以下环境变量：
+在 compose 文件的 `environment:` 块中配置：
 
-| 变量名         | 默认值        | 说明                                  |
-| -------------- | ------------- | ------------------------------------- |
-| `PORT`         | 27015         | 游戏服务器端口                        |
-| `DEFAULT_MAP`  | c2m1_highway  | 默认地图                              |
-| `MAXPLAYERS`   | -             | 最大玩家数（不设置则使用默认）        |
-| `TICKRATE`     | 100           | 服务器刷新率（如更改需修改server.cfg) |
-| `TZ`           | Asia/Shanghai | 时区设置                              |
-| `IP`           | 0.0.0.0       | 绑定IP地址                            |
-| `EXEC_CFG`     | server.cfg    | 服务器配置文件                        |
-| `SSH_PUBLIC_KEY` | -             | SSH公钥                               |
+| 变量名          | 默认值        | 说明                                                  |
+| --------------- | ------------- | ----------------------------------------------------- |
+| `PORT`          | 27015         | 游戏服务器端口                                        |
+| `DEFAULT_MAP`   | c2m1_highway  | 默认地图                                              |
+| `MAXPLAYERS`    | -             | 最大玩家数（未设置或 <= 0 时不传）                    |
+| `TICKRATE`      | 100           | 服务器刷新率（如更改需修改 server.cfg）               |
+| `TZ`            | Asia/Shanghai | 时区                                                  |
+| `IP`            | 0.0.0.0       | 绑定 IP 地址                                          |
+| `EXEC_CFG`      | server.cfg    | 服务器配置文件                                        |
+| `SSH_PUBLIC_KEY`| -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录）     |
+| `GAME_ID`       | 222860        | 游戏服务器的 Steam AppID                              |
+| `INSTALL_DIR`   | l4d2          | `/home/louis` 下的安装目录（须与挂载路径一致）        |
+
+> 如果你覆盖了 `INSTALL_DIR`，请同步修改游戏对应的卷/绑定挂载路径
+> （例如 `/home/louis/<你的目录>` 或 `./<你的目录>`）。
 
 ### 数据持久化
 
-以下目录通过 Docker 卷持久化存储：
+通过 Docker 卷 / 绑定挂载持久化的内容：
 
-- `/addons` - 插件文件
-- `/cfg` - 配置文件
-- `/scripts` - 脚本文件
+- `/home/louis/l4d2` —— 已安装的游戏（体积最大的部分）。**必须挂载此目录，
+  否则每次重建容器都会重新下载游戏。**
+- `/addons` —— 插件
+- `/cfg` —— 配置文件
+- `/scripts` —— 脚本文件
+
+SteamCMD 本身（`/home/louis/steamcmd.sh`、`.steam`）**不会**持久化；若缺失会在
+每次启动时重新下载（体积很小）。
 
 ## 插件管理
 
-### 默认插件
+首次启动（当上述目录为空时）会自动将
+[L4D2-Competitive-Rework](https://github.com/SirPlease/L4D2-Competitive-Rework)
+插件安装到 `/addons`、`/cfg`、`/scripts`。如需重装，清空 `/addons/sourcemod`
+目录后重启容器即可。
 
-项目默认安装了 [L4D2-Competitive-Rework](https://github.com/SirPlease/L4D2-Competitive-Rework) 插件。
+## 注意事项与排错
+
+- **首次启动很慢：** 第一次会有较长时间的 SteamCMD 下载。
+- **权限（绑定挂载）：** 主机目录最终归 UID 1000 所有。以 UID 1000 编辑，
+  或自行 `chown` 到你的 UID。
+- **SSH：** 通过 `SSH_PUBLIC_KEY` 添加公钥；密码登录已禁用。
+- **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。
 
 ## 许可证
 
@@ -82,8 +135,4 @@ docker-compose up -d
 
 ## 支持与贡献
 
-如有问题或建议，请提交 Issue 或 Pull Request。
-
----
-
-**注意**: 请确保遵守 Steam 和 Valve 的使用条款。此项目仅用于搭建个人或社区游戏服务器。
+如有问题或建议，欢迎提交 Issue 或 Pull Request。

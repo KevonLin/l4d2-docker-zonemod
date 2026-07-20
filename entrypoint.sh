@@ -47,11 +47,13 @@ if [ "$(id -u)" -eq 0 ]; then
         chown -R louis:louis /home/louis/.ssh
     fi
 
-    # Ensure the game install directory exists and is writable by the unprivileged
-    # "louis" user. This matters whether the directory is a named volume or a
-    # bind mount (for a bind mount this also chowns the host directory to UID 1000).
+    # Ensure the game install directory and the data directories are owned by the
+    # unprivileged "louis" user, so that logging in via SSH as louis and uploading
+    # files (e.g. addons/cfg/scripts) works without a manual chown. This is
+    # especially important for bind mounts, whose host directories are created
+    # root-owned by the Docker daemon.
     mkdir -p "/home/louis/${INSTALL_DIR}"
-    chown louis:louis "/home/louis/${INSTALL_DIR}"
+    chown louis:louis "/home/louis/${INSTALL_DIR}" /addons /cfg /scripts
 
     install_plugins_if_needed
 

@@ -78,9 +78,10 @@ survives `docker compose down` / `up`. Use `docker compose down -v` to wipe it.
 ### B. Bind mounts (`compose.bind.yml`)
 
 Data lives in directories next to the compose file (`l4d2/`, `addons/`, `cfg/`,
-`scripts/`) so you can inspect/edit files directly on the host. On first start
-the directories are created and the game directory is chowned to UID 1000
-(`louis`); the plugin step chowns `/addons`, `/cfg`, `/scripts` the same way.
+`scripts/`) so you can inspect/edit files directly on the host. The entrypoint
+chowns `/home/louis/l4d2`, `/addons`, `/cfg` and `/scripts` to the `louis` user
+(UID 1000) on every start, so you can log in via SSH as `louis` and upload
+files without a manual `chown`.
 
 ## Configuration
 
@@ -127,9 +128,14 @@ first start (when those directories are empty). To re-install, clear the
 ## Notes & troubleshooting
 
 - **First start is slow.** Expect a long SteamCMD download the first time.
-- **Permissions (bind mounts):** host directories end up owned by UID 1000. Edit
-  them as UID 1000 or `chown` to your own UID.
-- **SSH:** add your key via `SSH_PUBLIC_KEY`. Password auth is disabled.
+- **Permissions (bind mounts):** the entrypoint makes `/home/louis/l4d2`,
+  `/addons`, `/cfg` and `/scripts` owned by `louis` (UID 1000) on every start,
+  so SSH uploads as `louis` need no manual `chown`. Pre-existing files that were
+  already root-owned on the host (rare) may still need a one-time
+  `chown -R louis:louis` if you must edit them in place.
+- **SSH:** add your key via `SSH_PUBLIC_KEY` (password auth is disabled). Log in
+  as `louis` to upload addons/configs; the target directories are owned by
+  `louis`, so uploads need no manual `chown`.
 - **Compliance:** respect Steam/Valve ToS. For personal or community servers only.
 
 ## License

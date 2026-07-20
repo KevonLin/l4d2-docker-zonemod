@@ -72,12 +72,13 @@ docker compose -f compose.bind.yml up -d
 数据存放在 Docker 管理的卷中。最简单，无需管理主机路径。数据在
 `docker compose down` / `up` 后仍保留；使用 `docker compose down -v` 可清空数据。
 
-### B. 绑定挂载（`compose.bind.yml`）
+### B. 绑定挂载（`compose.bind.yml`)
 
 数据存放在 compose 文件同级目录下（`l4d2/`、`addons/`、`cfg/`、`scripts/`），
-方便你在主机上直接查看/编辑文件。首次启动会自动创建这些目录，并且游戏目录
-会被赋予 UID 1000（`louis`）所有权；插件安装步骤也会把 `/addons`、`/cfg`、
-`/scripts` 同样改为 UID 1000 所有。
+方便你在主机上直接查看/编辑文件。容器每次启动时，`entrypoint` 都会把
+`/home/louis/l4d2`、`/addons`、`/cfg`、`/scripts` 的归属改为 `louis`
+（UID 1000），因此你可以直接用 `louis` 通过 SSH 登录并上传文件，无需手动
+`chown`。
 
 ## 配置说明
 
@@ -124,9 +125,12 @@ SteamCMD 本身（`/home/louis/steamcmd.sh`、`.steam`）**不会**持久化；�
 ## 注意事项与排错
 
 - **首次启动很慢：** 第一次会有较长时间的 SteamCMD 下载。
-- **权限（绑定挂载）：** 主机目录最终归 UID 1000 所有。以 UID 1000 编辑，
-  或自行 `chown` 到你的 UID。
-- **SSH：** 通过 `SSH_PUBLIC_KEY` 添加公钥；密码登录已禁用。
+- **权限（绑定挂载）：** 容器每次启动都会把 `/home/louis/l4d2`、`/addons`、
+  `/cfg`、`/scripts` 设为 `louis`（UID 1000）所有，因此以 `louis` 通过 SSH
+  上传文件无需手动 `chown`。若主机上已存在归 root 所有的旧文件（罕见），就地
+  编辑它们可能仍需一次性 `chown -R louis:louis`。
+- **SSH：** 通过 `SSH_PUBLIC_KEY` 添加公钥（密码登录已禁用）。以 `louis` 登录后
+  即可上传插件/配置；目标目录归 `louis` 所有，上传无需手动 `chown`。
 - **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。
 
 ## 许可证

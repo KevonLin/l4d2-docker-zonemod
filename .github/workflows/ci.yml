@@ -15,9 +15,11 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 # Cancel in-flight runs for the same branch.
 concurrency:
@@ -37,7 +39,7 @@ jobs:
 
       - name: Validate YAML files
         run: |
-          yamllint --no-warnings \
+          python -m yamllint --no-warnings \
             compose.yml compose.bind.yml \
             .github/workflows/ci.yml \
             .github/workflows/docker-publish.yml
@@ -123,20 +125,15 @@ jobs:
       - name: Check that COPY sources exist
         run: |
           set -e
-          # Parse COPY --chmod lines from Dockerfile and verify each source
-          # exists relative to the repo root.
-          while IFS=' ' read -r _ src _; do
-            # Discard flags like --chmod=755 (they may appear after COPY)
-            src=${src#--chmod=*}
-            if [ -z "$src" ]; then continue; fi
-            src=$(echo "$src" | tr -d '.')
-            # Re-extract: COPY [--chmod=N] src dst
-            src=$(grep -oP '(?<=COPY\s.*?)\S+' Dockerfile | head -1)
-          done <<< "$(grep '^COPY ' Dockerfile)"
-          # Simpler approach: just extract the source token after COPY
-          grep '^COPY ' Dockerfile | while read -r line; do
-            # Strip leading COPY and any --chmod=xxx
-            src=$(echo "$line" | awk '{for(i=1;i<=NF;i++) if(!match($i,/^--/)) print $i}' | head -1)
+          # Extract source paths from COPY instructions, skipping --chmod flags.
+          # We parse: COPY  [--chmod=...]  <source>  <destination>
+          grep '^COPY ' Dockerfile | while read -r _chk line; do
+            # line = everything after "COPY "
+            # Drop leading --chmod if present
+            case "$line" in
+              --chmod=*) line="${line#--chmod=* }" ;;
+            esac
+            src="${line%% *}"          # first token after flags = source
             if [ -n "$src" ]; then
               if [ -f "$src" ]; then
                 echo "  ✅ COPY source exists: $src"
@@ -149,22 +146,28 @@ jobs:
 
       - name: Check ENTRYPOINT script exists
         run: |
-          entry=$(grep -oP '(?<=ENTRYPOINT\s\[").*?(?="\])' Dockerfile || true)
-          if [ -n "$entry" ] && [ ! -f "$entry" ]; then
-            echo "❌ ENTRYPOINT $entry not found"
-            exit 1
+          # Extract the path between ENTRYPOINT ["..."]
+          entry=$(grep '^ENTRYPOINT' Dockerfile | sed 's/.*"\(.*\)".*/\1/')
+          if [ -n "$entry" ]; then
+            if [ ! -f "$entry" ]; then
+              echo "❌ ENTRYPOINT \"$entry\" not found"
+              exit 1
+            fi
+            echo "✅ ENTRYPOINT \"$entry\" exists"
+          else
+            echo "⚠️  Could not parse ENTRYPOINT, skipping check"
           fi
-          echo "✅ ENTRYPOINT $entry exists"
 
       - name: Check compose.yml references valid image name format
         run: |
-          img=$(grep -oP '(?<=image: ).+' compose.yml compose.bind.yml)
-          for i in $img; do
-            if echo "$i" | grep -qP '^[a-z0-9]+(/[a-z0-9_-]+)?:[a-zA-Z0-9_.-]+$'; then
-              echo "  ✅ Image reference: $i"
-            else
-              echo "  ⚠️  Non-standard image ref: $i"
-            fi
+          for f in compose.yml compose.bind.yml; do
+            while IFS=': ' read -r _key value; do
+              if echo "$value" | grep -qE '^[a-z0-9]+(/[a-z0-9_-]+)?:[a-zA-Z0-9_.-]+$'; then
+                echo "  ✅ $f image: $value"
+              else
+                echo "  ⚠️  $f non-standard image ref: $value"
+              fi
+            done < <(grep 'image: ' "$f" 2>/dev/null || true)
           done
 
       - name: Check environment variable consistency across files
@@ -173,8 +176,14 @@ jobs:
           # documented/used in compose files too.
           expected_vars="PORT TZ SSH_PUBLIC_KEY INSTALL_DIR GAME_ID IP MAXPLAYERS"
           for var in $expected_vars; do
-            in_compose=$(grep -c "$var" compose.yml compose.bind.yml 2>/dev/null || echo 0)
-            in_sh=$(grep -c "$var" entrypoint.sh as-user.sh 2>/dev/null || echo 0)
+            in_compose=0
+            for cf in compose.yml compose.bind.yml; do
+              [ -f "$cf" ] && count=$(grep -c "$var" "$cf" 2>/dev/null || echo 0) && in_compose=$((in_compose + count))
+            done
+            in_sh=0
+            for sf in entrypoint.sh as-user.sh; do
+              [ -f "$sf" ] && count=$(grep -c "$var" "$sf" 2>/dev/null || echo 0) && in_sh=$((in_sh + count))
+            done
             if [ "$in_sh" -gt 0 ]; then
               if [ "$in_compose" -eq 0 ]; then
                 echo "  ⚠️  $var is used in shell scripts but not referenced in compose files"

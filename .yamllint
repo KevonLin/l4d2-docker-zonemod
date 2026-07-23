@@ -1,0 +1,16 @@
+extends: default
+
+rules:
+  # Allow 1 space inside brackets for flow sequences.
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Do not enforce line-length limits on workflow files (long URLs, etc.).
+  line-length:
+    max: 120
+    level: warning
+
+  # Truthy value detection is fine for GitHub Actions YAML.
+  truthy:
+    level: warning

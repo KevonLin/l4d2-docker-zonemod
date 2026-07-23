@@ -1,0 +1,10 @@
+# Normalize shell scripts to LF (Unix line endings)
+# so they work inside the Ubuntu-based Docker container.
+*.sh      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+Dockerfile text eol=lf
+
+# Binary files – never touch
+*.gz      binary
+*.tar     binary

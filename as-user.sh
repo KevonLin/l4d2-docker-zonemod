@@ -1,7 +1,18 @@
 #!/bin/bash
+# Runtime game installer.
+# This script is executed at CONTAINER STARTUP (not baked into the image).
+# It is invoked by entrypoint.sh as the unprivileged "louis" user.
+# It is safe to run on every startup: the heavy first-install only happens
+# when the game is not already present, otherwise it just updates/validates.
 set -euo pipefail
 
 cd /home/louis
+
+GAME_ID="${GAME_ID:-222860}"
+INSTALL_DIR="${INSTALL_DIR:-l4d2}"
+
+# Defensive: make sure the install directory exists and is writable.
+mkdir -p "${INSTALL_DIR}"
 
 mkdir -p .steam/sdk32
 ln -sf ~/linux32/steamclient.so .steam/sdk32/steamclient.so
@@ -17,7 +28,6 @@ if ! ./steamcmd.sh +quit; then
     exit 1
 fi
 
-INSTALL_DIR="${INSTALL_DIR:-l4d2}"
 GAME_DIR="${INSTALL_DIR}/left4dead2"
 mkdir -p "${GAME_DIR}"
 
@@ -40,28 +50,35 @@ check_game_installed() {
     fi
 }
 
-if [ "${INSTALL_DIR}" = "l4d2" ]; then
-    echo """force_install_dir "/home/louis/${INSTALL_DIR}"
-    login anonymous
-    @sSteamCmdForcePlatformType windows
-    app_update ${GAME_ID}
-    @sSteamCmdForcePlatformType linux
-    app_update ${GAME_ID} validate
-    quit""" > first-install-l4d2.txt
+if [ ! -f "${INSTALL_DIR}/srcds_run" ]; then
+    if [ "${INSTALL_DIR}" = "l4d2" ]; then
+        echo """force_install_dir "/home/louis/${INSTALL_DIR}"
+        login anonymous
+        @sSteamCmdForcePlatformType windows
+        app_update ${GAME_ID}
+        @sSteamCmdForcePlatformType linux
+        app_update ${GAME_ID} validate
+        quit""" > first-install-l4d2.txt
 
-    echo ">>> Installing L4D2 (first install, may take a while)..."
-    if ! ./steamcmd.sh +runscript first-install-l4d2.txt; then
-        echo "ERROR: steamcmd failed to execute the install script." >&2
-        exit 1
+        echo ">>> Installing L4D2 (first install, may take a while)..."
+        if ! ./steamcmd.sh +runscript first-install-l4d2.txt; then
+            echo "ERROR: steamcmd failed to execute the install script." >&2
+            exit 1
+        fi
+    else
+        echo ">>> Installing game (AppID: ${GAME_ID})..."
+        if ! ./steamcmd.sh +runscript update.txt; then
+            echo "ERROR: steamcmd failed to execute the install script." >&2
+            exit 1
+        fi
     fi
     check_game_installed
 else
-    echo ">>> Installing/updating game (AppID: ${GAME_ID})..."
+    echo ">>> Game already installed, updating/validating..."
     if ! ./steamcmd.sh +runscript update.txt; then
-        echo "ERROR: steamcmd failed to execute the install script." >&2
+        echo "ERROR: steamcmd failed to execute the update script." >&2
         exit 1
     fi
-    check_game_installed
 fi
 
-echo ">>> Game installation completed successfully."
+echo ">>> Game preparation completed successfully."

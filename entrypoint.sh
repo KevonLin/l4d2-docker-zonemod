@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Runtime-configurable values (override via environment / compose).
+: "${GAME_ID:=222860}"
+: "${INSTALL_DIR:=l4d2}"
+export GAME_ID INSTALL_DIR
+
 install_plugins_if_needed() {
     if [ ! -d /addons/sourcemod ]; then
         echo "Plugins not found. Installing L4D2 Competitive Rework plugins..."
@@ -42,6 +47,14 @@ if [ "$(id -u)" -eq 0 ]; then
         chown -R louis:louis /home/louis/.ssh
     fi
 
+    # Ensure the game install directory and the data directories are owned by the
+    # unprivileged "louis" user, so that logging in via SSH as louis and uploading
+    # files (e.g. addons/cfg/scripts) works without a manual chown. This is
+    # especially important for bind mounts, whose host directories are created
+    # root-owned by the Docker daemon.
+    mkdir -p "/home/louis/${INSTALL_DIR}"
+    chown louis:louis "/home/louis/${INSTALL_DIR}" /addons /cfg /scripts
+
     install_plugins_if_needed
 
     echo "Starting SSH daemon..."
@@ -58,10 +71,10 @@ fi
 : "${TICKRATE:=100}"
 : "${EXEC_CFG:=server.cfg}"
 
-GAME_ID=222860
-INSTALL_DIR="l4d2"
-
-./steamcmd.sh +runscript update.txt
+# Install/update the game at container startup (it is no longer baked into the image).
+# The game is stored under /home/louis/${INSTALL_DIR}, which should be mounted as a
+# volume/bind mount so it survives container recreation.
+./as-user.sh
 
 cd "${INSTALL_DIR}" || exit 50
 

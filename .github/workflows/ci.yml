@@ -172,18 +172,12 @@ jobs:
 
       - name: Check environment variable consistency across files
         run: |
-          # Variables that appear in entrypoint.sh (defaults) should be
-          # documented/used in compose files too.
+          # Cat each set of files together, then count occurrences.
+          # Avoids the multi-file "file:count" output of grep -c.
           expected_vars="PORT TZ SSH_PUBLIC_KEY INSTALL_DIR GAME_ID IP MAXPLAYERS"
           for var in $expected_vars; do
-            in_compose=0
-            for cf in compose.yml compose.bind.yml; do
-              [ -f "$cf" ] && in_compose=$((in_compose + $(grep -c "$var" "$cf" 2>/dev/null || echo 0)))
-            done
-            in_sh=0
-            for sf in entrypoint.sh as-user.sh; do
-              [ -f "$sf" ] && in_sh=$((in_sh + $(grep -c "$var" "$sf" 2>/dev/null || echo 0)))
-            done
+            in_compose=$( (cat compose.yml compose.bind.yml 2>/dev/null || true) | grep -c "$var" || echo 0)
+            in_sh=$(     (cat entrypoint.sh as-user.sh 2>/dev/null || true)   | grep -c "$var" || echo 0)
             if [ "$in_sh" -gt 0 ]; then
               if [ "$in_compose" -eq 0 ]; then
                 echo "  ⚠️  $var is used in shell scripts but not referenced in compose files"

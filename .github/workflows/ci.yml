@@ -178,11 +178,11 @@ jobs:
           for var in $expected_vars; do
             in_compose=0
             for cf in compose.yml compose.bind.yml; do
-              [ -f "$cf" ] && count=$(grep -c "$var" "$cf" 2>/dev/null || echo 0) && in_compose=$((in_compose + count))
+              [ -f "$cf" ] && in_compose=$((in_compose + $(grep -c "$var" "$cf" 2>/dev/null || echo 0)))
             done
             in_sh=0
             for sf in entrypoint.sh as-user.sh; do
-              [ -f "$sf" ] && count=$(grep -c "$var" "$sf" 2>/dev/null || echo 0) && in_sh=$((in_sh + count))
+              [ -f "$sf" ] && in_sh=$((in_sh + $(grep -c "$var" "$sf" 2>/dev/null || echo 0)))
             done
             if [ "$in_sh" -gt 0 ]; then
               if [ "$in_compose" -eq 0 ]; then

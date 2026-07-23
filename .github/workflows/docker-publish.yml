@@ -1,4 +1,18 @@
-name: Build and Push Docker Image on Tag
+# CD: Build and push the Docker image to Docker Hub on version tags.
+#
+# This runs only when a semver tag (vX.Y.Z) is pushed to the master
+# branch.  On every other push or PR the CI workflow handles validation
+# without pushing anything.
+#
+# Optimizations:
+#   - Docker layer caching via GitHub Actions cache (gha)
+#   - OCI provenance attestations (SLSA Level 2+)
+#   - Software Bill of Materials (SBOM) embedded in the image
+#   - Git SHA tags for supply-chain traceability
+#   - Build summary with digest output
+#   - Dry-run build step before pushing to fail fast on local issues
+
+name: Publish Docker Image
 
 on:
   push:
@@ -9,14 +23,22 @@ env:
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/l4d2
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
+    # packages:write  and  id-token:write  are needed for OCI attestations
+    # and for cosign / actions/attest-build-provenance.
     permissions:
       contents: read
+      packages: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -24,19 +46,59 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      # ── Tags & labels ──────────────────────────────────────────────
+      - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=tag           # 生成与 Git 标签同名的镜像标签（如 v1.0.0）
-            type=raw,value=latest        # 额外生成 latest 标签
+            type=ref,event=tag
+            type=sha,format=short
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=L4D2 Docker Zonemod
+            org.opencontainers.image.description=Left 4 Dead 2 dedicated server with Zonemod
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
+      # ── Validate before push ───────────────────────────────────────
+      - name: Dockerfile syntax check
+        run: docker build --check .
+
+      # ── Build & push ───────────────────────────────────────────────
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        id: build
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Provenance (SLSA) and SBOM are baked into the OCI manifest.
+          provenance: mode=max
+          sbom: true
+
+      # ── Attestations ───────────────────────────────────────────────
+      - name: Generate build-provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      # ── Summary ────────────────────────────────────────────────────
+      - name: Show summary
+        run: |
+          echo "## ✅ Published to Docker Hub" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Image** | \`${{ env.IMAGE_NAME }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Tags** | ${{ steps.meta.outputs.tags }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Digest** | \`${{ steps.build.outputs.digest }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Provenance** | SLSA v1 (built-in) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **SBOM** | embedded in OCI manifest |" >> "$GITHUB_STEP_SUMMARY"

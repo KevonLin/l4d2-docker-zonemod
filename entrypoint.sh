@@ -1,16 +1,36 @@
 #!/bin/bash
 set -e
 
+: "${TZ:=UTC}"
 : "${BASE_DIR:=/home/louis}"
 : "${INSTALL_DIR:=l4d2}"
 : "${GAME_NAME:=left4dead2}"
 : "${GAME_ID:=222860}"
 : "${INSTALL_PLUGINS:=true}"
 
+# The image is deliberately timezone-agnostic: the timezone is applied at
+# container startup from the live environment ("TZ" env var). Setting it
+# requires root, so the root branch below updates /etc/timezone and
+# /etc/localtime, then drops to the unprivileged "louis" user (via gosu) and
+# re-enters this script to do the actual install/launch work.
+if [ "$(id -u)" -eq 0 ]; then
+    ZONEINFO="/usr/share/zoneinfo/${TZ}"
+    if [ -e "$ZONEINFO" ]; then
+        echo "${TZ}" > /etc/timezone
+        ln -sf "$ZONEINFO" /etc/localtime
+        echo ">>> Timezone set to ${TZ}"
+    else
+        echo "Warning: timezone '${TZ}' not found in /usr/share/zoneinfo. Keeping default." >&2
+    fi
+
+    echo ">>> Switching to unprivileged user 'louis'."
+    exec gosu louis "$0" "$@"
+fi
+
 GAME_ROOT="${BASE_DIR}/${INSTALL_DIR}"
 PLUGIN_DIR="${GAME_ROOT}/${GAME_NAME}"
 
-export BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR
+export BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR TZ
 
 : "${DEFAULT_MAP:=c2m1_highway}"
 : "${PORT:=27015}"

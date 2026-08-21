@@ -18,13 +18,14 @@
 
 ## 工作原理
 
-1. `as-root.sh` 在**构建时**（Dockerfile 内）运行：安装系统依赖、设置将被打入
-   镜像的时区、创建非特权用户 `louis`，并准备好系统环境。
+1. `as-root.sh` 在**构建时**（Dockerfile 内）运行：安装系统依赖、`gosu`（用于
+   降权）、非特权用户 `louis`，并准备好系统环境。镜像本身不固定时区。
 2. 构建出的镜像**不包含**游戏本体。
-3. 在**容器启动时**，`entrypoint.sh`（以 `louis` 身份运行）会：
-   - 由 `BASE_DIR` / `INSTALL_DIR` / `GAME_NAME` 推导出 `GAME_ROOT` / `PLUGIN_DIR`；
-   - 运行 `install-plugins.sh` 将插件安装到游戏目录（仅首次运行时，除非
-     `INSTALL_PLUGINS=false`）；
+3. 在**容器启动时** `entrypoint.sh` 会：
+   - （以 root）根据实时环境变量 `TZ` 设置时区，然后通过 `gosu` 降权为
+     `louis` 用户；
+   - （以 `louis`）运行 `install-plugins.sh` 将插件安装到游戏目录（仅首次
+     运行时，除非 `INSTALL_PLUGINS=false`）；
    - 运行 `as-user.sh` 通过 SteamCMD 安装/更新游戏；
    - 使用你的配置启动 `srcds_run`。
 
@@ -90,8 +91,9 @@ docker compose up -d
 | `TZ`                       | Asia/Shanghai | 时区                                                          |
 | `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（预留 - 当前运行时暂未启用）                    |
 
-> **时区在构建时生效。** `as-root.sh` 在 `build-l4d2.sh` 构建镜像时会将该值打入
-> 镜像；在 `.env` 中修改 `TZ` 不会影响正在运行的容器。需要重建镜像才能更改。
+> **时区在容器启动时生效。** `entrypoint.sh` 每次启动时读取环境变量 `TZ`
+> （来自 `.env`），并设置 `/etc/timezone` 与 `/etc/localtime`。无需重建镜像
+> —— 修改 `.env` 中的 `TZ` 后重启容器即可。
 
 ### 数据持久化
 
@@ -115,7 +117,7 @@ docker compose up -d
 ## 注意事项与排错
 
 - **首次启动很慢：** 第一次会有较长时间的 SteamCMD 下载。
-- **时区在构建时打入镜像：** 修改 `TZ` 后需重建镜像才能生效。
+- **时区在启动时生效：** 修改 `.env` 中的 `TZ` 后重启容器即可，无需重建镜像。
 - **权限：** `${BASE_DIR}` 下所有内容均归 `louis` 所有，因此通过 SSH 上传到
   这些目录无需手动 `chown`。
 - **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。

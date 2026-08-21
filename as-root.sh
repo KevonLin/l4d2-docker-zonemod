@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Prevent any apt/dpkg debconf front-end from prompting interactively.
+# Without this, `apt-get install tzdata` pops up the classic region/city
+# selection menu, which hangs (and cancels) the docker build.
+export DEBIAN_FRONTEND=noninteractive
+
 dpkg --add-architecture i386
 apt-get update
 
@@ -19,11 +24,11 @@ apt-get -y install \
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 
-: "${TZ:=UTC}"
-echo "Setting timezone to $TZ"
-echo "$TZ" > /etc/timezone
-ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime
-dpkg-reconfigure -f noninteractive tzdata 2>/dev/null || true
+# gosu lets the entrypoint run as root (to set the timezone at startup) and
+# then drop privileges to the unprivileged "louis" user for the actual work.
+GOSU_VERSION=1.17
+curl -fsSL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-$(dpkg --print-architecture)" -o /usr/local/bin/gosu
+chmod +x /usr/local/bin/gosu
 
 mkdir -p /var/run/sshd
 

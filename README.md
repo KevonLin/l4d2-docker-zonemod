@@ -23,14 +23,14 @@ Key design choices:
 ## How it works
 
 1. `as-root.sh` runs at **build time** (inside the Dockerfile): installs system
-   dependencies, sets the timezone that is baked into the image, creates the
-   unprivileged `louis` user, and prepares the system.
+   dependencies, `gosu` (for privilege dropping), the unprivileged `louis`
+   user, and prepares the system. The image itself stays timezone-agnostic.
 2. The image is built **without** the game inside it.
-3. At **container startup**, `entrypoint.sh` (running as `louis`):
-   - derives `GAME_ROOT` / `PLUGIN_DIR` from `BASE_DIR` / `INSTALL_DIR` /
-     `GAME_NAME`;
-   - runs `install-plugins.sh` to install plugins into the game directory on
-     first run (unless `INSTALL_PLUGINS=false`);
+3. At **container startup**, `entrypoint.sh`:
+   - (as root) applies the timezone from the live `TZ` environment variable,
+     then drops to the `louis` user via `gosu`;
+   - (as `louis`) runs `install-plugins.sh` to install plugins into the game
+     directory on first run (unless `INSTALL_PLUGINS=false`);
    - runs `as-user.sh` to install/update the game via SteamCMD;
    - launches `srcds_run` with your settings.
 
@@ -96,9 +96,10 @@ All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 | `TZ`                        | Asia/Shanghai | Timezone                                                             |
 | `SSH_PUBLIC_KEY`            | -             | Your SSH public key (reserved - not applied at runtime yet)          |
 
-> **Timezone is applied at build time.** `as-root.sh` bakes the `TZ` value into
-> the image during `build-l4d2.sh`; changing it in `.env` does not alter a
-> running container. Rebuild the image to change it.
+> **Timezone is applied at container startup.** `entrypoint.sh` reads the `TZ`
+> environment variable (from `.env`) and sets `/etc/timezone` +
+> `/etc/localtime` on every start. No rebuild needed — just change `TZ` in
+> `.env` and restart the container.
 
 ### Data persistence
 
@@ -126,7 +127,8 @@ installation entirely.
 ## Notes & troubleshooting
 
 - **First start is slow.** Expect a long SteamCMD download the first time.
-- **Timezone is baked in at build time.** Change `TZ` and rebuild the image.
+- **Timezone is applied at startup.** Change `TZ` in `.env` and restart the
+  container — no rebuild required.
 - **Permissions:** `louis` owns everything under `${BASE_DIR}`, so SSH uploads
   to those directories need no manual `chown`.
 - **Compliance:** respect Steam/Valve ToS. For personal or community servers only.

@@ -22,8 +22,8 @@
    降权）、非特权用户 `louis`，并准备好系统环境。镜像本身不固定时区。
 2. 构建出的镜像**不包含**游戏本体。
 3. 在**容器启动时** `entrypoint.sh` 会：
-   - （以 root）根据实时环境变量 `TZ` 设置时区，然后通过 `gosu` 降权为
-     `louis` 用户；
+   - （以 root）根据实时环境变量 `TZ` 设置时区，并按 `SSH_PORT` 配置并启动
+     SSH 服务，然后通过 `gosu` 降权为 `louis` 用户；
    - （以 `louis`）运行 `install-plugins.sh` 将插件安装到游戏目录（仅首次
      运行时，除非 `INSTALL_PLUGINS=false`）；
    - 运行 `as-user.sh` 通过 SteamCMD 安装/更新游戏；
@@ -89,11 +89,16 @@ docker compose up -d
 | `MAXPLAYERS`               | -             | 最大玩家数（未设置或 <= 0 时不传）                            |
 | `DEFAULT_MAP`              | c2m1_highway  | 默认地图                                                      |
 | `TZ`                       | Asia/Shanghai | 时区                                                          |
-| `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（预留 - 当前运行时暂未启用）                    |
+| `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录）             |
+| `SSH_PORT`                 | 22            | SSH 服务端口（启动时写入 sshd_config）                        |
 
 > **时区在容器启动时生效。** `entrypoint.sh` 每次启动时读取环境变量 `TZ`
 > （来自 `.env`），并设置 `/etc/timezone` 与 `/etc/localtime`。无需重建镜像
 > —— 修改 `.env` 中的 `TZ` 后重启容器即可。
+>
+> **SSH 端口在容器启动时生效。** `entrypoint.sh` 读取 `SSH_PORT` 环境变量，
+> 在启动 sshd 前改写 `/etc/ssh/sshd_config` 中的 `Port` 指令。修改 `.env` 中的
+> `SSH_PORT` 后重启即可更换端口。
 
 ### 数据持久化
 
@@ -118,6 +123,8 @@ docker compose up -d
 
 - **首次启动很慢：** 第一次会有较长时间的 SteamCMD 下载。
 - **时区在启动时生效：** 修改 `.env` 中的 `TZ` 后重启容器即可，无需重建镜像。
+- **SSH（可选）：** 设置 `SSH_PUBLIC_KEY` 即可用 `louis` 登录（密码登录已禁用），
+  用 `SSH_PORT` 指定端口（默认 22）。两者均在启动时生效，无需重建镜像。
 - **权限：** `${BASE_DIR}` 下所有内容均归 `louis` 所有，因此通过 SSH 上传到
   这些目录无需手动 `chown`。
 - **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。

@@ -1,9 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-: "${BASE_DIR?}" "${INSTALL_DIR?}" "${GAME_ID?}" "${GAME_ROOT?}"
+: "${BASE_DIR?}" "${INSTALL_DIR?}" "${GAME_ID?}" "${GAME_ROOT?}" "${SSH_PUBLIC_KEY?}"
 
-mkdir -p "${BASE_DIR}/.ssh"
+if [ -n "${SSH_PUBLIC_KEY}" ]; then
+    mkdir -p "${BASE_DIR}/.ssh"
+    echo "${SSH_PUBLIC_KEY}" > "${BASE_DIR}/.ssh/authorized_keys"
+    chmod 700 "${BASE_DIR}/.ssh"
+    chmod 600 "${BASE_DIR}/.ssh/authorized_keys"
+fi
 
 mkdir -p "/tmp/dumps"
 

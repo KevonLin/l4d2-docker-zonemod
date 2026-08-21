@@ -28,7 +28,8 @@ Key design choices:
 2. The image is built **without** the game inside it.
 3. At **container startup**, `entrypoint.sh`:
    - (as root) applies the timezone from the live `TZ` environment variable,
-     then drops to the `louis` user via `gosu`;
+     starts the SSH server (set to the `SSH_PORT` from the environment), then
+     drops to the `louis` user via `gosu`;
    - (as `louis`) runs `install-plugins.sh` to install plugins into the game
      directory on first run (unless `INSTALL_PLUGINS=false`);
    - runs `as-user.sh` to install/update the game via SteamCMD;
@@ -94,12 +95,18 @@ All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 | `MAXPLAYERS`                | -             | Maximum players (omitted if unset or <= 0)                           |
 | `DEFAULT_MAP`               | c2m1_highway  | Default map                                                          |
 | `TZ`                        | Asia/Shanghai | Timezone                                                             |
-| `SSH_PUBLIC_KEY`            | -             | Your SSH public key (reserved - not applied at runtime yet)          |
+| `SSH_PUBLIC_KEY`            | -             | Your SSH public key (enables SSH login as `louis`)                   |
+| `SSH_PORT`                  | 22            | SSH server port (applied to sshd_config at startup)                  |
 
 > **Timezone is applied at container startup.** `entrypoint.sh` reads the `TZ`
 > environment variable (from `.env`) and sets `/etc/timezone` +
 > `/etc/localtime` on every start. No rebuild needed — just change `TZ` in
 > `.env` and restart the container.
+>
+> **SSH port is applied at container startup.** `entrypoint.sh` reads `SSH_PORT`
+> from the environment and rewrites the `Port` directive in `/etc/ssh/sshd_config`
+> before starting sshd. Change `SSH_PORT` in `.env` and restart to use another
+> port.
 
 ### Data persistence
 
@@ -129,6 +136,9 @@ installation entirely.
 - **First start is slow.** Expect a long SteamCMD download the first time.
 - **Timezone is applied at startup.** Change `TZ` in `.env` and restart the
   container — no rebuild required.
+- **SSH:** optional. Set `SSH_PUBLIC_KEY` to log in as `louis` (password auth
+  is disabled) and `SSH_PORT` to choose its port (default 22). Both apply at
+  startup; no rebuild needed.
 - **Permissions:** `louis` owns everything under `${BASE_DIR}`, so SSH uploads
   to those directories need no manual `chown`.
 - **Compliance:** respect Steam/Valve ToS. For personal or community servers only.

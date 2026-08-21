@@ -22,7 +22,7 @@ COPY --chmod=755 install-plugins.sh .
 # gosu. The image itself stays timezone-agnostic.
 USER root
 
-EXPOSE 27015/tcp 27015/udp
+EXPOSE 27015/tcp 27015/udp 22/tcp
 VOLUME ["/home/louis"]
 
 ENTRYPOINT ["./entrypoint.sh"]

@@ -16,8 +16,9 @@ services:
     container_name: l4d2
     restart: unless-stopped
     ports:
-      - "${PORT}:${PORT}"          # Host port ← → container port (both from .env)
+      - "${PORT}:${PORT}"          # Game server (host port ← → container port, both from .env)
       - "${PORT}:${PORT}/udp"
+      - "${SSH_PORT}:${SSH_PORT}"  # SSH server (from .env)
     env_file:
       - .env
     volumes:

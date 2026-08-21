@@ -1,21 +1,26 @@
 #!/bin/bash
-# Runtime game installer.
-# This script is executed at CONTAINER STARTUP (not baked into the image).
-# It is invoked by entrypoint.sh as the unprivileged "louis" user.
-# It is safe to run on every startup: the heavy first-install only happens
-# when the game is not already present, otherwise it just updates/validates.
 set -euo pipefail
 
-cd /home/louis
+: "${BASE_DIR?}" "${INSTALL_DIR?}" "${GAME_ID?}" "${GAME_ROOT?}" "${SSH_PUBLIC_KEY?}"
 
-GAME_ID="${GAME_ID:-222860}"
-INSTALL_DIR="${INSTALL_DIR:-l4d2}"
+if [ -n "${SSH_PUBLIC_KEY}" ]; then
+    mkdir -p "${BASE_DIR}/.ssh"
+    echo "${SSH_PUBLIC_KEY}" > "${BASE_DIR}/.ssh/authorized_keys"
+    chmod 700 "${BASE_DIR}/.ssh"
+    chmod 600 "${BASE_DIR}/.ssh/authorized_keys"
+fi
 
-# Defensive: make sure the install directory exists and is writable.
-mkdir -p "${INSTALL_DIR}"
+mkdir -p "/tmp/dumps"
 
-mkdir -p .steam/sdk32
-ln -sf ~/linux32/steamclient.so .steam/sdk32/steamclient.so
+mkdir -p "${GAME_ROOT}"
+
+cd "${BASE_DIR}"
+
+mkdir -p ".steam/sdk32"
+
+if [ -f "./linux32/steamclient.so" ]; then
+    ln -sf "./linux32/steamclient.so" ".steam/sdk32/steamclient.so"
+fi
 
 if [ ! -f steamcmd.sh ]; then
     echo ">>> Downloading steamcmd..."
@@ -28,37 +33,27 @@ if ! ./steamcmd.sh +quit; then
     exit 1
 fi
 
-GAME_DIR="${INSTALL_DIR}/left4dead2"
-mkdir -p "${GAME_DIR}"
-
-echo ">>> Creating symlinks for mount points..."
-ln -sf /addons         "${GAME_DIR}/addons"
-ln -sf /cfg            "${GAME_DIR}/cfg"
-ln -sf /scripts        "${GAME_DIR}/scripts"
-ln -sf /motd/myhost.txt  "${GAME_DIR}/myhost.txt"
-ln -sf /motd/mymotd.txt  "${GAME_DIR}/mymotd.txt"
-
-echo """force_install_dir "/home/louis/${INSTALL_DIR}"
+echo """force_install_dir "${GAME_ROOT}"
 login anonymous
 app_update ${GAME_ID}
 quit""" > update.txt
 
 check_game_installed() {
-    if [ ! -f "${INSTALL_DIR}/srcds_run" ]; then
-        echo "ERROR: Game installation failed - srcds_run not found in ${INSTALL_DIR}." >&2
+    if [ ! -f "${GAME_ROOT}/srcds_run" ]; then
+        echo "ERROR: Game installation failed - srcds_run not found in ${GAME_ROOT}." >&2
         exit 1
     fi
 }
 
-if [ ! -f "${INSTALL_DIR}/srcds_run" ]; then
-    if [ "${INSTALL_DIR}" = "l4d2" ]; then
-        echo """force_install_dir "/home/louis/${INSTALL_DIR}"
-        login anonymous
-        @sSteamCmdForcePlatformType windows
-        app_update ${GAME_ID}
-        @sSteamCmdForcePlatformType linux
-        app_update ${GAME_ID} validate
-        quit""" > first-install-l4d2.txt
+if [ ! -f "${GAME_ROOT}/srcds_run" ]; then
+    if [ "${GAME_NAME}" = "left4dead2" ]; then
+        echo """force_install_dir "${GAME_ROOT}"
+login anonymous
+@sSteamCmdForcePlatformType windows
+app_update ${GAME_ID}
+@sSteamCmdForcePlatformType linux
+app_update ${GAME_ID} validate
+quit""" > first-install-l4d2.txt
 
         echo ">>> Installing L4D2 (first install, may take a while)..."
         if ! ./steamcmd.sh +runscript first-install-l4d2.txt; then

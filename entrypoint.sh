@@ -1,67 +1,36 @@
 #!/bin/bash
 set -e
 
-# Runtime-configurable values (override via environment / compose).
-: "${GAME_ID:=222860}"
+: "${TZ:=UTC}"
+: "${BASE_DIR:=/home/louis}"
 : "${INSTALL_DIR:=l4d2}"
-export GAME_ID INSTALL_DIR
+: "${GAME_NAME:=left4dead2}"
+: "${GAME_ID:=222860}"
+: "${INSTALL_PLUGINS:=true}"
 
-install_plugins_if_needed() {
-    if [ ! -d /addons/sourcemod ]; then
-        echo "Plugins not found. Installing L4D2 Competitive Rework plugins..."
-        TEMP_DIR=$(mktemp -d)
-        cd "$TEMP_DIR"
-        git clone https://github.com/SirPlease/L4D2-Competitive-Rework.git
-        cp -r L4D2-Competitive-Rework/addons/* /addons/
-        cp -r L4D2-Competitive-Rework/cfg/* /cfg/
-        cp -r L4D2-Competitive-Rework/scripts/* /scripts/
-        cd /
-        rm -rf "$TEMP_DIR"
-        chown -R louis:louis /addons /cfg /scripts
-        echo "Plugins installed successfully."
-    else
-        echo "Plugins already present, skipping installation."
-    fi
-}
-
+# The image is deliberately timezone-agnostic: the timezone is applied at
+# container startup from the live environment ("TZ" env var). Setting it
+# requires root, so the root branch below updates /etc/timezone and
+# /etc/localtime, then drops to the unprivileged "louis" user (via gosu) and
+# re-enters this script to do the actual install/launch work.
 if [ "$(id -u)" -eq 0 ]; then
-    if [ -n "$TZ" ]; then
-        ZONEINFO="/usr/share/zoneinfo/$TZ"
-        if [ -f "$ZONEINFO" ]; then
-            ln -sf "$ZONEINFO" /etc/localtime
-            echo "$TZ" > /etc/timezone
-            dpkg-reconfigure -f noninteractive tzdata 2>/dev/null || true
-        else
-            echo "Warning: Timezone $TZ not found in /usr/share/zoneinfo. Keeping default." >&2
-        fi
+    ZONEINFO="/usr/share/zoneinfo/${TZ}"
+    if [ -e "$ZONEINFO" ]; then
+        echo "${TZ}" > /etc/timezone
+        ln -sf "$ZONEINFO" /etc/localtime
+        echo ">>> Timezone set to ${TZ}"
     else
-        echo "No TZ environment variable set. Using container default timezone." >&2
+        echo "Warning: timezone '${TZ}' not found in /usr/share/zoneinfo. Keeping default." >&2
     fi
 
-    if [ -n "$SSH_PUBLIC_KEY" ]; then
-        echo "Setting up SSH public key for user louis..."
-        mkdir -p /home/louis/.ssh
-        chmod 700 /home/louis/.ssh
-        echo "$SSH_PUBLIC_KEY" >> /home/louis/.ssh/authorized_keys
-        chmod 600 /home/louis/.ssh/authorized_keys
-        chown -R louis:louis /home/louis/.ssh
-    fi
-
-    # Ensure the game install directory and the data directories are owned by the
-    # unprivileged "louis" user, so that logging in via SSH as louis and uploading
-    # files (e.g. addons/cfg/scripts) works without a manual chown. This is
-    # especially important for bind mounts, whose host directories are created
-    # root-owned by the Docker daemon.
-    mkdir -p "/home/louis/${INSTALL_DIR}"
-    chown louis:louis "/home/louis/${INSTALL_DIR}" /addons /cfg /scripts
-
-    install_plugins_if_needed
-
-    echo "Starting SSH daemon..."
-    /usr/sbin/sshd -D &
-
+    echo ">>> Switching to unprivileged user 'louis'."
     exec gosu louis "$0" "$@"
 fi
+
+GAME_ROOT="${BASE_DIR}/${INSTALL_DIR}"
+PLUGIN_DIR="${GAME_ROOT}/${GAME_NAME}"
+
+export BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR TZ
 
 : "${DEFAULT_MAP:=c2m1_highway}"
 : "${PORT:=27015}"
@@ -71,24 +40,17 @@ fi
 : "${TICKRATE:=100}"
 : "${EXEC_CFG:=server.cfg}"
 
-# Install/update the game at container startup (it is no longer baked into the image).
-# The game is stored under /home/louis/${INSTALL_DIR}, which should be mounted as a
-# volume/bind mount so it survives container recreation.
+./install-plugins.sh
+
 ./as-user.sh
 
-cd "${INSTALL_DIR}" || exit 50
-
-if [ "${INSTALL_DIR}" = "l4d2" ]; then
-    GAME_DIR="left4dead2"
-else
-    exit 100
-fi
+cd "${GAME_ROOT}" || exit 50
 
 if [ $# -gt 0 ]; then
-    ./srcds_run "$@"
+    exec ./srcds_run "$@"
 else
     STARTUP=("./srcds_run")
-    STARTUP+=("-game ${GAME_DIR}")
+    STARTUP+=("-game ${GAME_NAME}")
     STARTUP+=("-ip ${IP}")
     STARTUP+=("-port ${PORT}")
     STARTUP+=("+sv_clockcorrection_msecs ${CLOCK_CORRECTION_MSECS}")
@@ -101,5 +63,5 @@ else
         STARTUP+=("-maxplayers ${MAXPLAYERS}")
     fi
     
-    exec ${STARTUP[*]}
+    exec "${STARTUP[@]}"
 fi

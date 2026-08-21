@@ -1,0 +1,36 @@
+# L4D2 dedicated server - deployment using Docker named volumes (recommended).
+#
+# The game and config/plugin data live in Docker-managed volumes, so they
+# survive container recreation (`docker compose down` / `up`). Only `docker
+# compose down -v` removes the data.
+#
+# First start downloads & installs the game via SteamCMD (takes a while and
+# needs a stable network). Subsequent starts only update/validate.
+#
+# All runtime configuration is sourced from the .env file in the same directory.
+# See .env for available variables.
+
+services:
+  l4d2:
+    image: kevonlin/l4d2:latest
+    container_name: l4d2
+    restart: unless-stopped
+    ports:
+      - "${PORT}:${PORT}"          # Host port ← → container port (both from .env)
+      - "${PORT}:${PORT}/udp"
+    env_file:
+      - .env
+    volumes:
+      - l4d2-game:${BASE_DIR}
+      # Optional: separate volumes for plugins/configs
+      # - addons:${BASE_DIR}/${INSTALL_DIR}/${GAME_NAME}/addons
+      # - cfg:${BASE_DIR}/${INSTALL_DIR}/${GAME_NAME}/cfg
+      # - scripts:${BASE_DIR}/${INSTALL_DIR}/${GAME_NAME}/scripts
+    networks:
+      - l4d2-network
+
+volumes:
+  l4d2-game:
+
+networks:
+  l4d2-network:

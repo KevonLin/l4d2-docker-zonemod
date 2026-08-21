@@ -15,10 +15,14 @@ FROM base AS game
 # so the image stays small and the game binaries are never baked in.
 COPY --chmod=755 as-user.sh .
 COPY --chmod=755 entrypoint.sh .
+COPY --chmod=755 install-plugins.sh .
 
+# Start the entrypoint as root so it can set the timezone from the live
+# environment at startup, then drop to the unprivileged "louis" user via
+# gosu. The image itself stays timezone-agnostic.
 USER root
 
 EXPOSE 27015/tcp 27015/udp
-VOLUME ["/addons", "/cfg", "/scripts", "/home/louis/l4d2"]
+VOLUME ["/home/louis"]
 
 ENTRYPOINT ["./entrypoint.sh"]

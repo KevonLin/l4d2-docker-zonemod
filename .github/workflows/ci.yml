@@ -9,7 +9,7 @@
 #   2. Shell syntax            — every .sh file (bash -n)
 #   3. Dockerfile lint         — docker build --check (no cache, no push)
 #   4. External-URL reachable  — steamcmd, gosu, L4D2-Competitive-Rework
-#   5. Cross-file consistency  — COPY sources exist, compose refs match &c.
+#   5. .env file validation    — ensure required variables are defined
 
 name: CI
 
@@ -39,10 +39,15 @@ jobs:
 
       - name: Validate YAML files
         run: |
-          python -m yamllint --no-warnings \
-            compose.yml compose.bind.yml \
-            .github/workflows/ci.yml \
-            .github/workflows/docker-publish.yml
+          # Check all compose files that exist
+          COMPOSE_FILES=""
+          for f in docker-compose.yml compose.yml compose.bind.yml; do
+            if [ -f "$f" ]; then
+              COMPOSE_FILES="$COMPOSE_FILES $f"
+            fi
+          done
+          WORKFLOW_FILES=".github/workflows/ci.yml .github/workflows/docker-publish.yml"
+          python -m yamllint --no-warnings $COMPOSE_FILES $WORKFLOW_FILES
 
   # ── 2. Shell ─────────────────────────────────────────────────────────
   shell-lint:
@@ -97,9 +102,9 @@ jobs:
           URLs=(
             # SteamCMD tarball (as-user.sh)
             "https://media.steampowered.com/installer/steamcmd_linux.tar.gz"
-            # Gosu binary (as-root.sh)
+            # gosu binary (as-root.sh)
             "https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64"
-            # L4D2-Competitive-Rework (entrypoint.sh)
+            # L4D2-Competitive-Rework (install-plugins.sh)
             "https://github.com/SirPlease/L4D2-Competitive-Rework.git"
           )
 
@@ -115,7 +120,33 @@ jobs:
             fi
           done
 
-  # ── 5. Cross-file consistency ───────────────────────────────────────
+  # ── 5. .env file validation ────────────────────────────────────────
+  env-validation:
+    name: .env file validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check .env exists and contains required variables
+        run: |
+          if [ ! -f .env ]; then
+            echo "❌ .env file not found"
+            exit 1
+          fi
+          REQUIRED_VARS="BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS PORT IP DEFAULT_MAP MAXPLAYERS TZ"
+          missing=""
+          for var in $REQUIRED_VARS; do
+            if ! grep -q "^${var}=" .env; then
+              missing="$missing $var"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "❌ Missing required variables in .env:$missing"
+            exit 1
+          fi
+          echo "✅ .env file is valid and contains all required variables."
+
+  # ── 6. Cross-file consistency ───────────────────────────────────────
   consistency:
     name: Cross-file consistency
     runs-on: ubuntu-latest
@@ -126,7 +157,6 @@ jobs:
         run: |
           set -e
           # Extract source paths from COPY instructions, skipping --chmod flags.
-          # We parse: COPY  [--chmod=...]  <source>  <destination>
           grep '^COPY ' Dockerfile | while read -r _chk line; do
             # line = everything after "COPY "
             # Drop leading --chmod if present
@@ -160,7 +190,8 @@ jobs:
 
       - name: Check compose.yml references valid image name format
         run: |
-          for f in compose.yml compose.bind.yml; do
+          for f in docker-compose.yml compose.yml; do
+            [ -f "$f" ] || continue
             while IFS=': ' read -r _key value; do
               if echo "$value" | grep -qE '^[a-z0-9]+(/[a-z0-9_-]+)?:[a-zA-Z0-9_.-]+$'; then
                 echo "  ✅ $f image: $value"
@@ -168,21 +199,4 @@ jobs:
                 echo "  ⚠️  $f non-standard image ref: $value"
               fi
             done < <(grep 'image: ' "$f" 2>/dev/null || true)
-          done
-
-      - name: Check environment variable consistency across files
-        run: |
-          # Cat each set of files together, then count occurrences.
-          # Avoids the multi-file "file:count" output of grep -c.
-          expected_vars="PORT TZ SSH_PUBLIC_KEY INSTALL_DIR GAME_ID IP MAXPLAYERS"
-          for var in $expected_vars; do
-            in_compose=$( (cat compose.yml compose.bind.yml 2>/dev/null || true) | grep -c "$var" || echo 0)
-            in_sh=$(     (cat entrypoint.sh as-user.sh 2>/dev/null || true)   | grep -c "$var" || echo 0)
-            if [ "$in_sh" -gt 0 ]; then
-              if [ "$in_compose" -eq 0 ]; then
-                echo "  ⚠️  $var is used in shell scripts but not referenced in compose files"
-              else
-                echo "  ✅ $var: consistent across files"
-              fi
-            fi
           done

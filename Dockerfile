@@ -15,10 +15,9 @@ FROM base AS game
 # so the image stays small and the game binaries are never baked in.
 COPY --chmod=755 as-user.sh .
 COPY --chmod=755 entrypoint.sh .
-
-USER root
+COPY --chmod=755 install-plugins.sh .
 
 EXPOSE 27015/tcp 27015/udp
-VOLUME ["/addons", "/cfg", "/scripts", "/home/louis/l4d2"]
+VOLUME ["/home/louis"]
 
 ENTRYPOINT ["./entrypoint.sh"]

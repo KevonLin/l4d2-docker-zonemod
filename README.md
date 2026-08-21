@@ -11,34 +11,41 @@ one-click deployment.
 Key design choices:
 
 - **The game is installed at container startup, not baked into the image.** The
-  image stays small; `as-user.sh` downloads and installs L4D2 via SteamCMD on the
-  first start, then only updates/validates on later starts.
-- **Game data is persisted.** The install directory is mounted as a volume (or
-  bind mount), so the multi-GB download survives container recreation.
+  image stays small; `as-user.sh` downloads and installs L4D2 via SteamCMD on
+  the first start, then only updates/validates on later starts.
+- **All game data is persisted.** The base directory (`BASE_DIR`, default
+  `/home/louis`) is mounted as a Docker volume, so the multi-GB download
+  survives container recreation.
+- **All runtime settings live in one `.env` file.** The single
+  `docker-compose.yml` reads them automatically, so there is no need to edit
+  compose files for common changes.
 
 ## How it works
 
-1. `as-root.sh` (runs at **build time**) installs system dependencies, `gosu`,
-   creates the unprivileged `louis` user, and prepares the mount points.
+1. `as-root.sh` runs at **build time** (inside the Dockerfile): installs system
+   dependencies, sets the timezone that is baked into the image, creates the
+   unprivileged `louis` user, and prepares the system.
 2. The image is built **without** the game inside it.
-3. At **container startup**, `entrypoint.sh`:
-   - (as root) sets the timezone, installs your SSH key, makes sure the game
-     directory is owned by `louis`, installs plugins on first run, starts SSHd;
-   - (as `louis`) runs `as-user.sh` to install/update the game, then launches
-     `srcds_run`.
+3. At **container startup**, `entrypoint.sh` (running as `louis`):
+   - derives `GAME_ROOT` / `PLUGIN_DIR` from `BASE_DIR` / `INSTALL_DIR` /
+     `GAME_NAME`;
+   - runs `install-plugins.sh` to install plugins into the game directory on
+     first run (unless `INSTALL_PLUGINS=false`);
+   - runs `as-user.sh` to install/update the game via SteamCMD;
+   - launches `srcds_run` with your settings.
 
 ## File Structure
 
 ```
 .
-├── as-root.sh          # Build-time system setup (root)
-├── as-user.sh          # Game installer, runs at CONTAINER STARTUP via entrypoint.sh
-├── build-l4d2.sh       # Docker image build helper
-├── entrypoint.sh       # Container entrypoint (root -> louis)
-├── install-plugins.sh  # (legacy) standalone plugin installer
-├── compose.yml         # Sample: deployment with Docker named volumes
-├── compose.bind.yml    # Sample: deployment with host bind mounts
-└── README.md           # This file
+├── as-root.sh            # Build-time system setup (root, run inside Dockerfile)
+├── as-user.sh            # Game installer - runs at container startup
+├── entrypoint.sh         # Container entrypoint (plugins + game)
+├── install-plugins.sh    # Plugin installer - runs at container startup
+├── docker-compose.yml    # Deployment with Docker named volumes (the default file)
+├── .env                  # All runtime configuration
+├── build-l4d2.sh         # Docker image build helper
+└── README.md             # This file
 ```
 
 ## Quick Start
@@ -50,92 +57,78 @@ chmod +x *.sh
 sudo ./build-l4d2.sh      # builds kevonlin/l4d2:latest
 ```
 
-### 2. Deploy
+### 2. Configure
 
-Pick one of the two deployment styles below, then start the server:
+Copy/rename the supplied `.env` (or at least review its values). Every runtime
+setting is read from this file by `docker-compose.yml`.
+
+### 3. Deploy
 
 ```bash
-# Named volumes (recommended)
-docker compose -f compose.yml up -d
-
-# Host bind mounts
-docker compose -f compose.bind.yml up -d
+docker compose up -d
 ```
 
 > **Note:** The game is **not** in the image. On the first container start,
 > `as-user.sh` downloads and installs L4D2 via SteamCMD (slow, needs a stable
 > network). Later starts only update/validate the existing install.
 
-## Deployment methods
-
-Both samples expose the same server; they differ only in how data is stored.
-
-### A. Named volumes (`compose.yml`) — recommended
-
-Data lives in Docker-managed volumes. Simplest, no host paths to manage. Data
-survives `docker compose down` / `up`. Use `docker compose down -v` to wipe it.
-
-### B. Bind mounts (`compose.bind.yml`)
-
-Data lives in directories next to the compose file (`l4d2/`, `addons/`, `cfg/`,
-`scripts/`) so you can inspect/edit files directly on the host. The entrypoint
-chowns `/home/louis/l4d2`, `/addons`, `/cfg` and `/scripts` to the `louis` user
-(UID 1000) on every start, so you can log in via SSH as `louis` and upload
-files without a manual `chown`.
-
 ## Configuration
 
 ### Environment variables
 
-Set these in the `environment:` block of the compose file.
+All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 
-| Variable         | Default        | Description                                                        |
-| ---------------- | -------------- | ------------------------------------------------------------------ |
-| `PORT`           | 27015          | Game server port                                                   |
-| `DEFAULT_MAP`    | c2m1_highway   | Default map                                                        |
-| `MAXPLAYERS`     | -              | Maximum players (omitted if unset / <= 0)                          |
-| `TICKRATE`       | 100            | Server tickrate (needs `server.cfg` adjustment if changed)         |
-| `TZ`             | Asia/Shanghai  | Timezone                                                           |
-| `IP`             | 0.0.0.0        | Bind IP address                                                    |
-| `EXEC_CFG`       | server.cfg     | Server config file                                                 |
-| `SSH_PUBLIC_KEY` | -              | Your SSH public key (enables SSH login as `louis`)                 |
-| `GAME_ID`        | 222860         | Steam AppID of the game server                                     |
-| `INSTALL_DIR`    | l4d2           | Install directory under `/home/louis` (must match the mount path)  |
+| Variable                    | Default       | Description                                                          |
+| --------------------------- | ------------- | -------------------------------------------------------------------- |
+| `BASE_DIR`                  | /home/louis   | Base directory for the game user (`louis`)                           |
+| `INSTALL_DIR`               | l4d2          | Install subdirectory under `BASE_DIR`                                |
+| `GAME_NAME`                 | left4dead2    | Game directory name (used for the `-game` and plugin path)           |
+| `GAME_ID`                   | 222860        | Steam AppID of the game server                                       |
+| `INSTALL_PLUGINS`           | true          | Auto-install plugins on first start (`true` / `false`)               |
+| `PORT`                      | 27015         | Game server port (TCP/UDP)                                           |
+| `IP`                        | 0.0.0.0       | Bind IP address                                                      |
+| `CLOCK_CORRECTION_MSECS`    | 25            | `+sv_clockcorrection_msecs` startup value                            |
+| `TIMEOUT`                   | 10            | Connection timeout in seconds (`-timeout`)                           |
+| `TICKRATE`                  | 100           | Server tickrate (needs `server.cfg` adjustment if changed)           |
+| `EXEC_CFG`                  | server.cfg    | Config file to execute (`+exec`)                                     |
+| `MAXPLAYERS`                | -             | Maximum players (omitted if unset or <= 0)                           |
+| `DEFAULT_MAP`               | c2m1_highway  | Default map                                                          |
+| `TZ`                        | Asia/Shanghai | Timezone                                                             |
+| `SSH_PUBLIC_KEY`            | -             | Your SSH public key (reserved - not applied at runtime yet)          |
 
-> If you override `INSTALL_DIR`, also update the volume/bind mount path for the
-> game (e.g. `/home/louis/<your-dir>` or `./<your-dir>`).
+> **Timezone is applied at build time.** `as-root.sh` bakes the `TZ` value into
+> the image during `build-l4d2.sh`; changing it in `.env` does not alter a
+> running container. Rebuild the image to change it.
 
 ### Data persistence
 
-Persisted via Docker volumes / bind mounts:
+The whole game directory is mounted via the `l4d2-game` volume at `${BASE_DIR}`
+(default `/home/louis`):
 
-- `/home/louis/l4d2` — the installed game (the big one). **Mount this or the
-  game re-downloads on every recreate.**
-- `/addons` — plugins
-- `/cfg` — configuration
-- `/scripts` — scripts
+- `{BASE_DIR}/{INSTALL_DIR}` — the installed game (the big one).
+- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/addons` — plugins
+- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/cfg` — configuration
+- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/scripts` — scripts
 
-SteamCMD itself (`/home/louis/steamcmd.sh`, `.steam`) is **not** persisted;
-it is re-fetched on each start if missing (small download).
+`docker compose down` / `up` keeps all data; only `docker compose down -v`
+removes it.
 
 ## Plugin management
 
-The [L4D2-Competitive-Rework](https://github.com/SirPlease/L4D2-Competitive-Rework)
-plugins are installed automatically into `/addons`, `/cfg`, `/scripts` on the
-first start (when those directories are empty). To re-install, clear the
-`/addons/sourcemod` directory and restart.
+The
+[L4D2-Competitive-Rework](https://github.com/SirPlease/L4D2-Competitive-Rework)
+plugins are installed by `install-plugins.sh` into the game directory's
+`addons` / `cfg` / `scripts` folders on the first start (when
+`addons/sourcemod` is absent). To re-install, clear `addons/sourcemod` and
+restart the container. Set `INSTALL_PLUGINS=false` in `.env` to skip automatic
+installation entirely.
 
 ## Notes & troubleshooting
 
 - **First start is slow.** Expect a long SteamCMD download the first time.
-- **Permissions (bind mounts):** the entrypoint makes `/home/louis/l4d2`,
-  `/addons`, `/cfg` and `/scripts` owned by `louis` (UID 1000) on every start,
-  so SSH uploads as `louis` need no manual `chown`. Pre-existing files that were
-  already root-owned on the host (rare) may still need a one-time
-  `chown -R louis:louis` if you must edit them in place.
-- **SSH:** add your key via `SSH_PUBLIC_KEY` (password auth is disabled). Log in
-  as `louis` to upload addons/configs; the target directories are owned by
-  `louis`, so uploads need no manual `chown`.
+- **Timezone is baked in at build time.** Change `TZ` and rebuild the image.
+- **Permissions:** `louis` owns everything under `${BASE_DIR}`, so SSH uploads
+  to those directories need no manual `chown`.
 - **Compliance:** respect Steam/Valve ToS. For personal or community servers only.
 
 ## License

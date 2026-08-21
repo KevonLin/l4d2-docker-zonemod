@@ -25,8 +25,6 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    # packages:write  and  id-token:write  are needed for OCI attestations
-    # and for cosign / actions/attest-build-provenance.
     permissions:
       contents: read
       packages: write
@@ -66,6 +64,15 @@ jobs:
       # ── Validate before push ───────────────────────────────────────
       - name: Dockerfile syntax check
         run: docker build --check .
+
+      # Optionally validate .env example (if exists)
+      - name: Validate .env file (optional)
+        run: |
+          if [ -f .env ]; then
+            echo "✅ .env file found – will be included in image but not used at build time."
+          else
+            echo "⚠️  .env file not found – ensure runtime configuration is provided."
+          fi
 
       # ── Build & push ───────────────────────────────────────────────
       - name: Build and push Docker image

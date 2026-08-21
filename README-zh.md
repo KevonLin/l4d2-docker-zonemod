@@ -11,31 +11,35 @@
 
 - **游戏在容器启动时安装，而不是打包进镜像。** 镜像体积很小；首次启动时
   `as-user.sh` 通过 SteamCMD 下载并安装 L4D2，之后每次启动仅做更新/校验。
-- **游戏数据持久化。** 安装目录以卷（volume）或绑定挂载（bind mount）方式挂载，
-  因此这个几十 GB 的下载在容器重建后依然保留。
+- **所有游戏数据持久化。** 游戏基础目录（`BASE_DIR`，默认 `/home/louis`）以
+  Docker 卷方式挂载，因此这个几十 GB 的下载在容器重建后依然保留。
+- **所有运行时配置集中在一个 `.env` 文件中。** 唯一的 `docker-compose.yml`
+  会自动读取它，常见修改无需编辑 compose 文件。
 
 ## 工作原理
 
-1. `as-root.sh`（在**构建时**运行）安装系统依赖、`gosu`，创建非特权用户
-   `louis`，并准备好各挂载点。
+1. `as-root.sh` 在**构建时**（Dockerfile 内）运行：安装系统依赖、设置将被打入
+   镜像的时区、创建非特权用户 `louis`，并准备好系统环境。
 2. 构建出的镜像**不包含**游戏本体。
-3. 在**容器启动时**，`entrypoint.sh` 会：
-   - （以 root）设置时区、写入你的 SSH 公钥、确保游戏目录归 `louis` 所有、
-     首次运行时安装插件、启动 SSH 服务；
-   - （以 `louis`）运行 `as-user.sh` 安装/更新游戏，然后启动 `srcds_run`。
+3. 在**容器启动时**，`entrypoint.sh`（以 `louis` 身份运行）会：
+   - 由 `BASE_DIR` / `INSTALL_DIR` / `GAME_NAME` 推导出 `GAME_ROOT` / `PLUGIN_DIR`；
+   - 运行 `install-plugins.sh` 将插件安装到游戏目录（仅首次运行时，除非
+     `INSTALL_PLUGINS=false`）；
+   - 运行 `as-user.sh` 通过 SteamCMD 安装/更新游戏；
+   - 使用你的配置启动 `srcds_run`。
 
 ## 文件结构
 
 ```
 .
-├── as-root.sh          # 构建期系统初始化脚本（root 权限）
-├── as-user.sh         # 游戏安装脚本，在容器启动时（由 entrypoint.sh 调用）执行
-├── build-l4d2.sh       # Docker 镜像构建辅助脚本
-├── entrypoint.sh       # 容器入口点脚本（root -> louis）
-├── install-plugins.sh  # （旧）独立插件安装脚本
-├── compose.yml         # 样本：使用 Docker 命名卷部署
-├── compose.bind.yml    # 样本：使用主机绑定挂载部署
-└── README.md           # 英文文档
+├── as-root.sh            # 构建期系统初始化脚本（root 权限，在 Dockerfile 内执行）
+├── as-user.sh            # 游戏安装脚本，容器启动时执行
+├── entrypoint.sh         # 容器入口点脚本（插件 + 游戏）
+├── install-plugins.sh    # 插件安装脚本，容器启动时执行
+├── docker-compose.yml    # 使用 Docker 命名卷部署（默认文件名）
+├── .env                  # 所有运行时配置
+├── build-l4d2.sh         # Docker 镜像构建辅助脚本
+└── README.md             # 英文文档
 ```
 
 ## 快速开始
@@ -47,90 +51,73 @@ chmod +x *.sh
 sudo ./build-l4d2.sh      # 构建 kevonlin/l4d2:latest
 ```
 
-### 2. 部署
+### 2. 配置
 
-选择下面两种部署方式之一，然后启动服务器：
+将提供的 `.env` 复制/重命名为你的配置（或至少检查其中各项取值）。所有运行时
+设置均由 `docker-compose.yml` 从该文件读取。
+
+### 3. 部署
 
 ```bash
-# 命名卷方式（推荐）
-docker compose -f compose.yml up -d
-
-# 主机绑定挂载方式
-docker compose -f compose.bind.yml up -d
+docker compose up -d
 ```
 
 > **注意**：游戏**不会**打包进镜像。首次启动容器时，`as-user.sh` 会通过
 > SteamCMD 下载并安装 L4D2（耗时较长，需要稳定的网络连接）。之后启动只会
 > 更新/校验已有的安装。
 
-## 部署方式
-
-两个样本暴露的服务器完全一致，区别仅在于数据如何存储。
-
-### A. 命名卷（`compose.yml`）—— 推荐
-
-数据存放在 Docker 管理的卷中。最简单，无需管理主机路径。数据在
-`docker compose down` / `up` 后仍保留；使用 `docker compose down -v` 可清空数据。
-
-### B. 绑定挂载（`compose.bind.yml`)
-
-数据存放在 compose 文件同级目录下（`l4d2/`、`addons/`、`cfg/`、`scripts/`），
-方便你在主机上直接查看/编辑文件。容器每次启动时，`entrypoint` 都会把
-`/home/louis/l4d2`、`/addons`、`/cfg`、`/scripts` 的归属改为 `louis`
-（UID 1000），因此你可以直接用 `louis` 通过 SSH 登录并上传文件，无需手动
-`chown`。
-
 ## 配置说明
 
 ### 环境变量
 
-在 compose 文件的 `environment:` 块中配置：
+所有设置都在 `.env` 文件中定义（由 `docker-compose.yml` 加载）：
 
-| 变量名          | 默认值        | 说明                                                  |
-| --------------- | ------------- | ----------------------------------------------------- |
-| `PORT`          | 27015         | 游戏服务器端口                                        |
-| `DEFAULT_MAP`   | c2m1_highway  | 默认地图                                              |
-| `MAXPLAYERS`    | -             | 最大玩家数（未设置或 <= 0 时不传）                    |
-| `TICKRATE`      | 100           | 服务器刷新率（如更改需修改 server.cfg）               |
-| `TZ`            | Asia/Shanghai | 时区                                                  |
-| `IP`            | 0.0.0.0       | 绑定 IP 地址                                          |
-| `EXEC_CFG`      | server.cfg    | 服务器配置文件                                        |
-| `SSH_PUBLIC_KEY`| -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录）     |
-| `GAME_ID`       | 222860        | 游戏服务器的 Steam AppID                              |
-| `INSTALL_DIR`   | l4d2          | `/home/louis` 下的安装目录（须与挂载路径一致）        |
+| 变量                       | 默认值        | 说明                                                          |
+| -------------------------- | ------------- | ------------------------------------------------------------- |
+| `BASE_DIR`                 | /home/louis   | 游戏用户（`louis`）的基础目录                                 |
+| `INSTALL_DIR`              | l4d2          | `BASE_DIR` 下的安装子目录                                     |
+| `GAME_NAME`                | left4dead2    | 游戏目录名（用于 `-game` 参数和插件路径）                     |
+| `GAME_ID`                  | 222860        | 游戏服务器的 Steam AppID                                      |
+| `INSTALL_PLUGINS`          | true          | 首次启动时自动安装插件（`true` / `false`）                    |
+| `PORT`                     | 27015         | 游戏服务器端口（TCP/UDP）                                     |
+| `IP`                       | 0.0.0.0       | 绑定 IP 地址                                                  |
+| `CLOCK_CORRECTION_MSECS`   | 25            | `+sv_clockcorrection_msecs` 启动参数                          |
+| `TIMEOUT`                  | 10            | 连接超时秒数（`-timeout`）                                    |
+| `TICKRATE`                 | 100           | 服务器刷新率（如更改需修改 server.cfg）                       |
+| `EXEC_CFG`                 | server.cfg    | 要执行的服务器配置文件（`+exec`）                             |
+| `MAXPLAYERS`               | -             | 最大玩家数（未设置或 <= 0 时不传）                            |
+| `DEFAULT_MAP`              | c2m1_highway  | 默认地图                                                      |
+| `TZ`                       | Asia/Shanghai | 时区                                                          |
+| `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（预留 - 当前运行时暂未启用）                    |
 
-> 如果你覆盖了 `INSTALL_DIR`，请同步修改游戏对应的卷/绑定挂载路径
-> （例如 `/home/louis/<你的目录>` 或 `./<你的目录>`）。
+> **时区在构建时生效。** `as-root.sh` 在 `build-l4d2.sh` 构建镜像时会将该值打入
+> 镜像；在 `.env` 中修改 `TZ` 不会影响正在运行的容器。需要重建镜像才能更改。
 
 ### 数据持久化
 
-通过 Docker 卷 / 绑定挂载持久化的内容：
+整个游戏目录通过 `l4d2-game` 卷挂载在 `${BASE_DIR}`（默认 `/home/louis`）下：
 
-- `/home/louis/l4d2` —— 已安装的游戏（体积最大的部分）。**必须挂载此目录，
-  否则每次重建容器都会重新下载游戏。**
-- `/addons` —— 插件
-- `/cfg` —— 配置文件
-- `/scripts` —— 脚本文件
+- `{BASE_DIR}/{INSTALL_DIR}` —— 已安装的游戏（体积最大的部分）
+- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/addons` —— 插件
+- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/cfg` —— 配置文件
+- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/scripts` —— 脚本文件
 
-SteamCMD 本身（`/home/louis/steamcmd.sh`、`.steam`）**不会**持久化；若缺失会在
-每次启动时重新下载（体积很小）。
+`docker compose down` / `up` 后数据仍保留；仅 `docker compose down -v` 会清空数据。
 
 ## 插件管理
 
-首次启动（当上述目录为空时）会自动将
+首次启动时（当 `addons/sourcemod` 目录不存在时），`install-plugins.sh` 会将
 [L4D2-Competitive-Rework](https://github.com/SirPlease/L4D2-Competitive-Rework)
-插件安装到 `/addons`、`/cfg`、`/scripts`。如需重装，清空 `/addons/sourcemod`
-目录后重启容器即可。
+插件安装到游戏目录的 `addons` / `cfg` / `scripts` 中。如需重装，清空
+`addons/sourcemod` 目录后重启容器即可。在 `.env` 中设置 `INSTALL_PLUGINS=false`
+可完全跳过自动安装。
 
 ## 注意事项与排错
 
 - **首次启动很慢：** 第一次会有较长时间的 SteamCMD 下载。
-- **权限（绑定挂载）：** 容器每次启动都会把 `/home/louis/l4d2`、`/addons`、
-  `/cfg`、`/scripts` 设为 `louis`（UID 1000）所有，因此以 `louis` 通过 SSH
-  上传文件无需手动 `chown`。若主机上已存在归 root 所有的旧文件（罕见），就地
-  编辑它们可能仍需一次性 `chown -R louis:louis`。
-- **SSH：** 通过 `SSH_PUBLIC_KEY` 添加公钥（密码登录已禁用）。以 `louis` 登录后
-  即可上传插件/配置；目标目录归 `louis` 所有，上传无需手动 `chown`。
+- **时区在构建时打入镜像：** 修改 `TZ` 后需重建镜像才能生效。
+- **权限：** `${BASE_DIR}` 下所有内容均归 `louis` 所有，因此通过 SSH 上传到
+  这些目录无需手动 `chown`。
 - **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。
 
 ## 许可证

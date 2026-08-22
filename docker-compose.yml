@@ -22,11 +22,11 @@ services:
     env_file:
       - .env
     volumes:
-      - l4d2-game:${BASE_DIR}
+      - l4d2-game:${HOME}
       # Optional: separate volumes for plugins/configs
-      # - addons:${BASE_DIR}/${INSTALL_DIR}/${GAME_NAME}/addons
-      # - cfg:${BASE_DIR}/${INSTALL_DIR}/${GAME_NAME}/cfg
-      # - scripts:${BASE_DIR}/${INSTALL_DIR}/${GAME_NAME}/scripts
+      # - addons:${HOME}/${INSTALL_DIR}/${GAME_NAME}/addons
+      # - cfg:${HOME}/${INSTALL_DIR}/${GAME_NAME}/cfg
+      # - scripts:${HOME}/${INSTALL_DIR}/${GAME_NAME}/scripts
     networks:
       - l4d2-network
 

@@ -1,25 +1,25 @@
 #!/bin/bash
 set -euo pipefail
 
-: "${BASE_DIR?}" "${INSTALL_DIR?}" "${GAME_ID?}" "${GAME_ROOT?}" "${SSH_PUBLIC_KEY?}"
+: "${HOME?}" "${INSTALL_DIR?}" "${GAME_ID?}" "${GAME_ROOT?}" "${SSH_PUBLIC_KEY?}"
 
 if [ -n "${SSH_PUBLIC_KEY}" ]; then
-    mkdir -p "${BASE_DIR}/.ssh"
-    echo "${SSH_PUBLIC_KEY}" > "${BASE_DIR}/.ssh/authorized_keys"
-    chmod 700 "${BASE_DIR}/.ssh"
-    chmod 600 "${BASE_DIR}/.ssh/authorized_keys"
+    mkdir -p "${HOME}/.ssh"
+    echo "${SSH_PUBLIC_KEY}" > "${HOME}/.ssh/authorized_keys"
+    chmod 700 "${HOME}/.ssh"
+    chmod 600 "${HOME}/.ssh/authorized_keys"
 fi
 
 mkdir -p "/tmp/dumps"
 
 mkdir -p "${GAME_ROOT}"
 
-cd "${BASE_DIR}"
+cd "${HOME}"
 
 mkdir -p ".steam/sdk32"
 
 if [ -f "./linux32/steamclient.so" ]; then
-    ln -sf "./linux32/steamclient.so" ".steam/sdk32/steamclient.so"
+    ln -sf "./linux32/steamclient.so" "${HOME}/.steam/sdk32/steamclient.so"
 fi
 
 if [ ! -f steamcmd.sh ]; then

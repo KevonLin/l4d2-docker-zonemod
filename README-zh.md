@@ -11,7 +11,7 @@
 
 - **游戏在容器启动时安装，而不是打包进镜像。** 镜像体积很小；首次启动时
   `as-user.sh` 通过 SteamCMD 下载并安装 L4D2，之后每次启动仅做更新/校验。
-- **所有游戏数据持久化。** 游戏基础目录（`BASE_DIR`，默认 `/home/louis`）以
+- **所有游戏数据持久化。** 游戏基础目录（`HOME`，默认 `/home/louis`）以
   Docker 卷方式挂载，因此这个几十 GB 的下载在容器重建后依然保留。
 - **所有运行时配置集中在一个 `.env` 文件中。** 唯一的 `docker-compose.yml`
   会自动读取它，常见修改无需编辑 compose 文件。
@@ -73,24 +73,24 @@ docker compose up -d
 
 所有设置都在 `.env` 文件中定义（由 `docker-compose.yml` 加载）：
 
-| 变量                       | 默认值        | 说明                                                          |
+| 变量                       | 默认值         | 说明                                                          |
 | -------------------------- | ------------- | ------------------------------------------------------------- |
-| `BASE_DIR`                 | /home/louis   | 游戏用户（`louis`）的基础目录                                 |
-| `INSTALL_DIR`              | l4d2          | `BASE_DIR` 下的安装子目录                                     |
-| `GAME_NAME`                | left4dead2    | 游戏目录名（用于 `-game` 参数和插件路径）                     |
+| `HOME`                     | /home/louis   | 游戏用户（`louis`）的基础目录                                   |
+| `INSTALL_DIR`              | l4d2          | `HOME` 下的安装子目录                                          |
+| `GAME_NAME`                | left4dead2    | 游戏目录名（用于 `-game` 参数和插件路径）                       |
 | `GAME_ID`                  | 222860        | 游戏服务器的 Steam AppID                                      |
-| `INSTALL_PLUGINS`          | true          | 首次启动时自动安装插件（`true` / `false`）                    |
-| `PORT`                     | 27015         | 游戏服务器端口（TCP/UDP）                                     |
+| `INSTALL_PLUGINS`          | true          | 首次启动时自动安装插件（`true` / `false`）                      |
+| `PORT`                     | 27015         | 游戏服务器端口（TCP/UDP）                                      |
 | `IP`                       | 0.0.0.0       | 绑定 IP 地址                                                  |
 | `CLOCK_CORRECTION_MSECS`   | 25            | `+sv_clockcorrection_msecs` 启动参数                          |
-| `TIMEOUT`                  | 10            | 连接超时秒数（`-timeout`）                                    |
-| `TICKRATE`                 | 100           | 服务器刷新率（如更改需修改 server.cfg）                       |
-| `EXEC_CFG`                 | server.cfg    | 要执行的服务器配置文件（`+exec`）                             |
-| `MAXPLAYERS`               | -             | 最大玩家数（未设置或 <= 0 时不传）                            |
+| `TIMEOUT`                  | 10            | 连接超时秒数（`-timeout`）                                     |
+| `TICKRATE`                 | 100           | 服务器刷新率（如更改需修改 server.cfg）                        |
+| `EXEC_CFG`                 | server.cfg    | 要执行的服务器配置文件（`+exec`）                              |
+| `MAXPLAYERS`               | -             | 最大玩家数（未设置或 <= 0 时不传）                             |
 | `DEFAULT_MAP`              | c2m1_highway  | 默认地图                                                      |
 | `TZ`                       | Asia/Shanghai | 时区                                                          |
-| `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录）             |
-| `SSH_PORT`                 | 22            | SSH 服务端口（启动时写入 sshd_config）                        |
+| `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录）               |
+| `SSH_PORT`                 | 22            | SSH 服务端口（启动时写入 sshd_config）                         |
 
 > **时区在容器启动时生效。** `entrypoint.sh` 每次启动时读取环境变量 `TZ`
 > （来自 `.env`），并设置 `/etc/timezone` 与 `/etc/localtime`。无需重建镜像
@@ -102,12 +102,12 @@ docker compose up -d
 
 ### 数据持久化
 
-整个游戏目录通过 `l4d2-game` 卷挂载在 `${BASE_DIR}`（默认 `/home/louis`）下：
+整个游戏目录通过 `l4d2-game` 卷挂载在 `${HOME}`（默认 `/home/louis`）下：
 
-- `{BASE_DIR}/{INSTALL_DIR}` —— 已安装的游戏（体积最大的部分）
-- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/addons` —— 插件
-- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/cfg` —— 配置文件
-- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/scripts` —— 脚本文件
+- `{HOME}/{INSTALL_DIR}` —— 已安装的游戏（体积最大的部分）
+- `{HOME}/{INSTALL_DIR}/{GAME_NAME}/addons` —— 插件
+- `{HOME}/{INSTALL_DIR}/{GAME_NAME}/cfg` —— 配置文件
+- `{HOME}/{INSTALL_DIR}/{GAME_NAME}/scripts` —— 脚本文件
 
 `docker compose down` / `up` 后数据仍保留；仅 `docker compose down -v` 会清空数据。
 
@@ -125,7 +125,7 @@ docker compose up -d
 - **时区在启动时生效：** 修改 `.env` 中的 `TZ` 后重启容器即可，无需重建镜像。
 - **SSH（可选）：** 设置 `SSH_PUBLIC_KEY` 即可用 `louis` 登录（密码登录已禁用），
   用 `SSH_PORT` 指定端口（默认 22）。两者均在启动时生效，无需重建镜像。
-- **权限：** `${BASE_DIR}` 下所有内容均归 `louis` 所有，因此通过 SSH 上传到
+- **权限：** `${HOME}` 下所有内容均归 `louis` 所有，因此通过 SSH 上传到
   这些目录无需手动 `chown`。
 - **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。
 

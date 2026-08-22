@@ -2,7 +2,7 @@
 set -e
 
 : "${TZ:=UTC}"
-: "${BASE_DIR:=/home/louis}"
+: "${HOME:=/home/louis}"
 : "${INSTALL_DIR:=l4d2}"
 : "${GAME_NAME:=left4dead2}"
 : "${GAME_ID:=222860}"
@@ -41,14 +41,21 @@ if [ "$(id -u)" -eq 0 ]; then
     /usr/sbin/sshd
     echo ">>> SSH server started (port ${SSH_PORT})."
 
+    # The launcher scripts are copied into the image at build time with
+    # execute permission but owned by root. Re-apply ownership at runtime
+    # so the unprivileged 'louis' user can run them, even when a
+    # volume-mounted /home/louis  keeps legacy root-owned copies.
+    echo ">>> Setting ownership of launcher scripts to 'louis'."
+    chown louis:louis ./as-user.sh ./entrypoint.sh ./install-plugins.sh
+
     echo ">>> Switching to unprivileged user 'louis'."
     exec gosu louis "$0" "$@"
 fi
 
-GAME_ROOT="${BASE_DIR}/${INSTALL_DIR}"
+GAME_ROOT="${HOME}/${INSTALL_DIR}"
 PLUGIN_DIR="${GAME_ROOT}/${GAME_NAME}"
 
-export BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR TZ
+export HOME INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR TZ
 
 : "${DEFAULT_MAP:=c2m1_highway}"
 : "${PORT:=27015}"

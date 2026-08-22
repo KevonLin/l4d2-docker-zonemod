@@ -13,7 +13,7 @@ Key design choices:
 - **The game is installed at container startup, not baked into the image.** The
   image stays small; `as-user.sh` downloads and installs L4D2 via SteamCMD on
   the first start, then only updates/validates on later starts.
-- **All game data is persisted.** The base directory (`BASE_DIR`, default
+- **All game data is persisted.** The base directory (`HOME`, default
   `/home/louis`) is mounted as a Docker volume, so the multi-GB download
   survives container recreation.
 - **All runtime settings live in one `.env` file.** The single
@@ -81,8 +81,8 @@ All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 
 | Variable                    | Default       | Description                                                          |
 | --------------------------- | ------------- | -------------------------------------------------------------------- |
-| `BASE_DIR`                  | /home/louis   | Base directory for the game user (`louis`)                           |
-| `INSTALL_DIR`               | l4d2          | Install subdirectory under `BASE_DIR`                                |
+| `HOME`                      | /home/louis   | Base directory for the game user (`louis`)                           |
+| `INSTALL_DIR`               | l4d2          | Install subdirectory under `HOME`                                    |
 | `GAME_NAME`                 | left4dead2    | Game directory name (used for the `-game` and plugin path)           |
 | `GAME_ID`                   | 222860        | Steam AppID of the game server                                       |
 | `INSTALL_PLUGINS`           | true          | Auto-install plugins on first start (`true` / `false`)               |
@@ -110,13 +110,13 @@ All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 
 ### Data persistence
 
-The whole game directory is mounted via the `l4d2-game` volume at `${BASE_DIR}`
+The whole game directory is mounted via the `l4d2-game` volume at `${HOME}`
 (default `/home/louis`):
 
-- `{BASE_DIR}/{INSTALL_DIR}` — the installed game (the big one).
-- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/addons` — plugins
-- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/cfg` — configuration
-- `{BASE_DIR}/{INSTALL_DIR}/{GAME_NAME}/scripts` — scripts
+- `{HOME}/{INSTALL_DIR}` — the installed game (the big one).
+- `{HOME}/{INSTALL_DIR}/{GAME_NAME}/addons` — plugins
+- `{HOME}/{INSTALL_DIR}/{GAME_NAME}/cfg` — configuration
+- `{HOME}/{INSTALL_DIR}/{GAME_NAME}/scripts` — scripts
 
 `docker compose down` / `up` keeps all data; only `docker compose down -v`
 removes it.
@@ -139,7 +139,7 @@ installation entirely.
 - **SSH:** optional. Set `SSH_PUBLIC_KEY` to log in as `louis` (password auth
   is disabled) and `SSH_PORT` to choose its port (default 22). Both apply at
   startup; no rebuild needed.
-- **Permissions:** `louis` owns everything under `${BASE_DIR}`, so SSH uploads
+- **Permissions:** `louis` owns everything under `${HOME}`, so SSH uploads
   to those directories need no manual `chown`.
 - **Compliance:** respect Steam/Valve ToS. For personal or community servers only.
 

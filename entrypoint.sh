@@ -45,14 +45,12 @@ if [ "$(id -u)" -eq 0 ]; then
     # expected and harmless.
     pkill -x sshd 2>/dev/null || true
     /usr/sbin/sshd
+    sleep 1
+    if ! pgrep -x sshd >/dev/null 2>&1; then
+        echo "ERROR: sshd failed to start. Check /var/log/auth.log." >&2
+        exit 1
+    fi
     echo ">>> SSH server started (port ${SSH_PORT})."
-
-    # The launcher scripts are copied into the image at build time with
-    # execute permission but owned by root. Re-apply ownership at runtime
-    # so the unprivileged 'louis' user can run them, even when a
-    # volume-mounted /home/louis  keeps legacy root-owned copies.
-    echo ">>> Setting ownership of launcher scripts to 'louis'."
-    chown louis:louis ./as-user.sh ./entrypoint.sh ./install-plugins.sh
 
     echo ">>> Switching to unprivileged user 'louis'."
     exec gosu louis "$0" "$@"
@@ -71,9 +69,9 @@ export HOME INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR T
 : "${TICKRATE:=100}"
 : "${EXEC_CFG:=server.cfg}"
 
-./install-plugins.sh
+/usr/local/bin/install-plugins.sh
 
-./as-user.sh
+/usr/local/bin/as-user.sh
 
 cd "${GAME_ROOT}" || exit 50
 

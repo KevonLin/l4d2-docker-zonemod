@@ -178,12 +178,13 @@ jobs:
         run: |
           # Extract the path between ENTRYPOINT ["..."]
           entry=$(grep '^ENTRYPOINT' Dockerfile | sed 's/.*"\(.*\)".*/\1/')
+          base=$(basename "$entry")
           if [ -n "$entry" ]; then
-            if [ ! -f "$entry" ]; then
-              echo "❌ ENTRYPOINT \"$entry\" not found"
+            if [ ! -f "$base" ]; then
+              echo "❌ ENTRYPOINT \"$entry\" not found (expected source file: $base)"
               exit 1
             fi
-            echo "✅ ENTRYPOINT \"$entry\" exists"
+            echo "✅ ENTRYPOINT \"$entry\" exists (source: $base)"
           else
             echo "⚠️  Could not parse ENTRYPOINT, skipping check"
           fi

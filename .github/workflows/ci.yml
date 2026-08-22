@@ -133,7 +133,7 @@ jobs:
             echo "❌ .env.example file not found"
             exit 1
           fi
-          REQUIRED_VARS="BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS PORT IP DEFAULT_MAP MAXPLAYERS TZ"
+          REQUIRED_VARS="HOME INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS PORT IP DEFAULT_MAP MAXPLAYERS TZ"
           missing=""
           for var in $REQUIRED_VARS; do
             if ! grep -q "^${var}=" .env.example; then

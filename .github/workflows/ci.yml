@@ -9,7 +9,7 @@
 #   2. Shell syntax            — every .sh file (bash -n)
 #   3. Dockerfile lint         — docker build --check (no cache, no push)
 #   4. External-URL reachable  — steamcmd, gosu, L4D2-Competitive-Rework
-#   5. .env file validation    — ensure required variables are defined
+#   5. .env.example file validation    — ensure required variables are defined
 
 name: CI
 
@@ -120,31 +120,31 @@ jobs:
             fi
           done
 
-  # ── 5. .env file validation ────────────────────────────────────────
+  # ── 5. .env.example file validation ────────────────────────────────────────
   env-validation:
-    name: .env file validation
+    name: .env.example file validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check .env exists and contains required variables
+      - name: Check .env.example exists and contains required variables
         run: |
-          if [ ! -f .env ]; then
-            echo "❌ .env file not found"
+          if [ ! -f .env.example ]; then
+            echo "❌ .env.example file not found"
             exit 1
           fi
           REQUIRED_VARS="BASE_DIR INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS PORT IP DEFAULT_MAP MAXPLAYERS TZ"
           missing=""
           for var in $REQUIRED_VARS; do
-            if ! grep -q "^${var}=" .env; then
+            if ! grep -q "^${var}=" .env.example; then
               missing="$missing $var"
             fi
           done
           if [ -n "$missing" ]; then
-            echo "❌ Missing required variables in .env:$missing"
+            echo "❌ Missing required variables in .env.example:$missing"
             exit 1
           fi
-          echo "✅ .env file is valid and contains all required variables."
+          echo "✅ .env.example file is valid and contains all required variables."
 
   # ── 6. Cross-file consistency ───────────────────────────────────────
   consistency:

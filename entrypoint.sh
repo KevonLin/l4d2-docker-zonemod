@@ -26,8 +26,8 @@ if [ "$(id -u)" -eq 0 ]; then
     fi
 
     # SSH server: apply the SSH_PORT from the environment to sshd_config and
-    # start sshd (run as root; the authorized_keys for 'louis' are written by
-    # as-user.sh when the unprivileged user runs).
+    # (re)start sshd (run as root; the authorized_keys for 'louis' are written
+    # by as-user.sh when the unprivileged user runs).
     if [ -n "${SSH_PORT}" ]; then
         # Clear any existing commented/active Port directives, then append the
         # desired one. sshd uses the last value, so appending wins.
@@ -35,9 +35,15 @@ if [ "$(id -u)" -eq 0 ]; then
         echo "Port ${SSH_PORT}" >> /etc/ssh/sshd_config
         echo ">>> SSH server port set to ${SSH_PORT}"
     fi
-    if [ ! -d /run/sshd ]; then
-        mkdir -p /run/sshd
-    fi
+
+    mkdir -p /run/sshd
+
+    # A container boots into a clean slate, so on a normal start sshd is not
+    # running yet and simply needs launching. If this script is ever re-run
+    # while a stale daemon is still up, stop it first so the (possibly changed)
+    # Port directive is honoured. pkill exits 1 when nothing matches — that is
+    # expected and harmless.
+    pkill -x sshd 2>/dev/null || true
     /usr/sbin/sshd
     echo ">>> SSH server started (port ${SSH_PORT})."
 

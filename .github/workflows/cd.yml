@@ -97,6 +97,15 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+      # ── Update Docker Hub description ─────────────────────────────
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+          repository: ${{ secrets.DOCKER_USERNAME }}/l4d2
+          readme-filepath: ./README.md
+
       # ── Summary ────────────────────────────────────────────────────
       - name: Show summary
         run: |

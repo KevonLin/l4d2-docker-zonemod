@@ -46,7 +46,7 @@ jobs:
               COMPOSE_FILES="$COMPOSE_FILES $f"
             fi
           done
-          WORKFLOW_FILES=".github/workflows/ci.yml .github/workflows/docker-publish.yml"
+          WORKFLOW_FILES=".github/workflows/ci.yml .github/workflows/cd.yml"
           python -m yamllint --no-warnings $COMPOSE_FILES $WORKFLOW_FILES
 
   # ── 2. Shell ─────────────────────────────────────────────────────────

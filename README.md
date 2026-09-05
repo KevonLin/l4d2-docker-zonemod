@@ -40,7 +40,7 @@ Key design choices:
 
 ## File Structure
 
-```
+```text
 .
 ├── as-root.sh            # Build-time system setup (root, run inside Dockerfile)
 ├── as-user.sh            # Game installer - runs at container startup
@@ -114,8 +114,8 @@ Actions needed:
 ```bash
 make ci            # quick checks: YAML lint, shell syntax, Dockerfile static
                    # check, external-URL reachability, .env.example validation,
-                   # cross-file consistency (no game download)
-make ci-full       # quick checks + full image build (downloads the game)
+                   # cross-file consistency (no download)
+make ci-full       # quick checks + full image build (downloads the env)
 ```
 
 Or run the script directly:

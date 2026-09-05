@@ -9,9 +9,17 @@ export DEBIAN_FRONTEND=noninteractive
 dpkg --add-architecture i386
 apt-get update
 
+# 32-bit runtime for SteamCMD and the L4D2 srcds binary:
+#   - libc6:i386      32-bit glibc
+#   - lib32z1         32-bit zlib  (steamcmd needs it)
+#   - lib32gcc-s1     32-bit libgcc_s.so.1   (required on Ubuntu 22.04+; the
+#                     old "lib32gcc1" no longer exists on 24.04)
+#   - lib32stdc++6    32-bit libstdc++.so.6  (srcds_linux needs it)
 apt-get -y install \
     libc6:i386 \
     lib32z1 \
+    lib32gcc-s1 \
+    lib32stdc++6 \
     tar \
     telnet \
     git \
@@ -34,5 +42,12 @@ mkdir -p /var/run/sshd
 
 useradd -m -s /bin/bash louis
 
-sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+# Configure sshd via a drop-in file instead of sed-rewriting sshd_config:
+# every supported Ubuntu release reads /etc/ssh/sshd_config.d/*.conf (through
+# the "Include" directive), which is robust against the commented-out default
+# lines changing between 22.04 (jammy) and 24.04 (noble).
+cat > /etc/ssh/sshd_config.d/zz-l4d2.conf <<'EOF'
+# Applied at build time for the l4d2-docker-zonemod image.
+PubkeyAuthentication yes
+PasswordAuthentication no
+EOF

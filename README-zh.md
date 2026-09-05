@@ -27,7 +27,9 @@
    - （以 `louis`）运行 `install-plugins.sh` 将插件安装到游戏目录（仅首次
      运行时，除非 `INSTALL_PLUGINS=false`）；
    - 运行 `as-user.sh` 通过 SteamCMD 安装/更新游戏；
-   - 使用你的配置启动 `srcds_run`。
+   - 通过 `start.sh` 启动游戏服务器并接管守护：`srcds` 以后台守护进程方式
+     运行，控制台输出实时转发到 `docker logs`，崩溃时自动重启；也可随时
+     使用 `stop.sh` / `restart.sh` 停止/重启（见下文）。
 
 ## 文件结构
 
@@ -35,8 +37,11 @@
 .
 ├── as-root.sh            # 构建期系统初始化脚本（root 权限，在 Dockerfile 内执行）
 ├── as-user.sh            # 游戏安装脚本，容器启动时执行
-├── entrypoint.sh         # 容器入口点脚本（插件 + 游戏）
+├── entrypoint.sh         # 容器入口点脚本（插件 + 游戏 + 守护）
 ├── install-plugins.sh    # 插件安装脚本，容器启动时执行
+├── start.sh              # 将 srcds 作为后台守护进程启动（安装到 /usr/local/bin）
+├── stop.sh               # 优雅停止 srcds
+├── restart.sh            # 在同一容器内重启 srcds
 ├── docker-compose.yml    # 使用 Docker 命名卷部署（默认文件名）
 ├── .env                  # 所有运行时配置
 ├── build-l4d2.sh         # Docker 镜像构建辅助脚本
@@ -66,6 +71,25 @@ docker compose up -d
 > **注意**：游戏**不会**打包进镜像。首次启动容器时，`as-user.sh` 会通过
 > SteamCMD 下载并安装 L4D2（耗时较长，需要稳定的网络连接）。之后启动只会
 > 更新/校验已有的安装。
+
+## 在容器内管理服务器
+
+管理脚本安装在镜像的 `/usr/local/bin/` 下，可通过 SSH（以 `louis` 登录）或
+`docker exec` 使用：
+
+```bash
+docker exec l4d2 /usr/local/bin/restart.sh   # 重启游戏服务器
+docker exec l4d2 /usr/local/bin/stop.sh      # 停止游戏服务器
+docker exec l4d2 /usr/local/bin/start.sh     # （重新）启动游戏服务器
+```
+
+- `start.sh` 将 `srcds_run` 作为后台守护进程运行，状态（PID 文件、控制台日志、
+  控制文件）存放在 `{HOME}/.l4d2/`，由 `entrypoint.sh` 在每次启动容器时自动调用。
+- `entrypoint.sh` 让容器保持存活，把控制台实时转发到 `docker logs`，并在服务端
+  意外退出时自动重启（带退避；连续多次快速崩溃后放弃）。
+- `restart.sh` 在**同一容器内**重启服务端——不重建容器，SSH 会话不受影响。
+- `stop.sh` 停止服务端并结束容器。由于 `docker-compose.yml` 使用了
+  `restart: unless-stopped`，如需长期停服请用 `docker compose stop`。
 
 ## 配置说明
 
@@ -125,6 +149,8 @@ docker compose up -d
 - **时区在启动时生效：** 修改 `.env` 中的 `TZ` 后重启容器即可，无需重建镜像。
 - **SSH（可选）：** 设置 `SSH_PUBLIC_KEY` 即可用 `louis` 登录（密码登录已禁用），
   用 `SSH_PORT` 指定端口（默认 22）。两者均在启动时生效，无需重建镜像。
+- **崩溃自愈：** `srcds` 由入口脚本守护，异常退出时会自动重启（带退避）；
+  `restart.sh` / `stop.sh` 可在不重建容器的情况下管理服务端。
 - **权限：** `${HOME}` 下所有内容均归 `louis` 所有，因此通过 SSH 上传到
   这些目录无需手动 `chown`。
 - **合规性：** 请遵守 Steam / Valve 的使用条款，仅用于个人或社区服务器。

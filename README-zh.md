@@ -43,8 +43,11 @@
 ├── stop.sh               # 优雅停止 srcds
 ├── restart.sh            # 在同一容器内重启 srcds
 ├── docker-compose.yml    # 使用 Docker 命名卷部署（默认文件名）
-├── .env                  # 所有运行时配置
+├── .env.example          # 所有运行时配置模板（复制为 .env）
 ├── build-l4d2.sh         # Docker 镜像构建辅助脚本
+├── Makefile              # 本地 CI 目标：`make ci` / `make ci-full`
+├── setup-hooks.sh        # 安装 git 预推送钩子（自动运行 `make ci`）
+├── .scripts              # 本地 CI 脚本（对齐 .github/workflows/ci.yml）
 └── README.md             # 英文文档
 ```
 
@@ -90,6 +93,34 @@ docker exec l4d2 /usr/local/bin/start.sh     # （重新）启动游戏服务器
 - `restart.sh` 在**同一容器内**重启服务端——不重建容器，SSH 会话不受影响。
 - `stop.sh` 停止服务端并结束容器。由于 `docker-compose.yml` 使用了
   `restart: unless-stopped`，如需长期停服请用 `docker compose stop`。
+
+## 本地开发与 CI
+
+贡献者在推送前可以在本地运行与
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) 一致的校验，无需依赖
+GitHub Actions：
+
+```bash
+make ci            # 快速检查：YAML lint、Shell 语法、Dockerfile 静态检查、
+                   # 外部 URL 可达性、.env.example 校验、跨文件一致性
+                   # （不会下载游戏）
+make ci-full       # 快速检查 + 完整镜像构建（需下载游戏）
+```
+
+也可以直接运行脚本：
+
+```bash
+./.scripts/local-ci.sh          # 快速检查
+./.scripts/local-ci.sh --full   # 完整镜像构建
+```
+
+如需在每次 `git push` 前自动运行快速检查，可安装自带的预推送钩子：
+
+```bash
+./setup-hooks.sh
+```
+
+该钩子只写入你本地克隆的 `.git/hooks/` 目录，不会影响其他贡献者。
 
 ## 配置说明
 

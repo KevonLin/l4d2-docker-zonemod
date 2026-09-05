@@ -50,8 +50,11 @@ Key design choices:
 ├── stop.sh               # Gracefully stops srcds
 ├── restart.sh            # Restarts srcds in the same container
 ├── docker-compose.yml    # Deployment with Docker named volumes (the default file)
-├── .env                  # All runtime configuration
+├── .env.example          # All runtime configuration template (copy to .env)
 ├── build-l4d2.sh         # Docker image build helper
+├── Makefile              # Local CI targets: `make ci` / `make ci-full`
+├── setup-hooks.sh        # Installs a git pre-push hook that runs `make ci`
+├── .scripts              # Local CI script mirroring .github/workflows/ci.yml
 └── README.md             # This file
 ```
 
@@ -101,6 +104,36 @@ docker exec l4d2 /usr/local/bin/start.sh     # (re)start the game server
 - `stop.sh` stops the server and shuts the container down. Because
   `docker-compose.yml` uses `restart: unless-stopped`, use `docker compose
   stop` to keep the server down for good.
+
+## Local development & CI
+
+Contributors can run the same validation as
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) locally — no GitHub
+Actions needed:
+
+```bash
+make ci            # quick checks: YAML lint, shell syntax, Dockerfile static
+                   # check, external-URL reachability, .env.example validation,
+                   # cross-file consistency (no game download)
+make ci-full       # quick checks + full image build (downloads the game)
+```
+
+Or run the script directly:
+
+```bash
+./.scripts/local-ci.sh          # quick checks
+./.scripts/local-ci.sh --full   # full image build
+```
+
+To run the quick checks automatically before every `git push`, install the
+bundled pre-push hook:
+
+```bash
+./setup-hooks.sh
+```
+
+The hook is installed only into your local clone's `.git/hooks/` directory and
+is never shared with other contributors.
 
 ## Configuration
 

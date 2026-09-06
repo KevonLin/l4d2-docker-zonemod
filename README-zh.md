@@ -1,6 +1,6 @@
 # Left 4 Dead 2 服务器 Docker 部署指南
 
-## [English](./README.md) | 简体中文
+## [English](https://github.com/KevonLin/l4d2-docker-zonemod/blob/master/README.md) | 简体中文
 
 ## 项目概述
 
@@ -31,7 +31,7 @@
 
 ## 文件结构
 
-```
+```text
 .
 ├── as-root.sh            # 构建期系统初始化脚本（root 权限，在 Dockerfile 内执行）
 ├── as-user.sh            # 游戏安装脚本，容器启动时执行
@@ -73,24 +73,24 @@ docker compose up -d
 
 所有设置都在 `.env` 文件中定义（由 `docker-compose.yml` 加载）：
 
-| 变量                       | 默认值         | 说明                                                          |
-| -------------------------- | ------------- | ------------------------------------------------------------- |
-| `HOME`                     | /home/louis   | 游戏用户（`louis`）的基础目录                                   |
-| `INSTALL_DIR`              | l4d2          | `HOME` 下的安装子目录                                          |
-| `GAME_NAME`                | left4dead2    | 游戏目录名（用于 `-game` 参数和插件路径）                       |
-| `GAME_ID`                  | 222860        | 游戏服务器的 Steam AppID                                      |
-| `INSTALL_PLUGINS`          | true          | 首次启动时自动安装插件（`true` / `false`）                      |
-| `PORT`                     | 27015         | 游戏服务器端口（TCP/UDP）                                      |
-| `IP`                       | 0.0.0.0       | 绑定 IP 地址                                                  |
-| `CLOCK_CORRECTION_MSECS`   | 25            | `+sv_clockcorrection_msecs` 启动参数                          |
-| `TIMEOUT`                  | 10            | 连接超时秒数（`-timeout`）                                     |
-| `TICKRATE`                 | 100           | 服务器刷新率（如更改需修改 server.cfg）                        |
-| `EXEC_CFG`                 | server.cfg    | 要执行的服务器配置文件（`+exec`）                              |
-| `MAXPLAYERS`               | -             | 最大玩家数（未设置或 <= 0 时不传）                             |
-| `DEFAULT_MAP`              | c2m1_highway  | 默认地图                                                      |
-| `TZ`                       | Asia/Shanghai | 时区                                                          |
-| `SSH_PUBLIC_KEY`           | -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录）               |
-| `SSH_PORT`                 | 22            | SSH 服务端口（启动时写入 sshd_config）                         |
+| 变量                     | 默认值        | 说明                                              |
+| ------------------------ | ------------- | ------------------------------------------------- |
+| `HOME`                   | /home/louis   | 游戏用户（`louis`）的基础目录                     |
+| `INSTALL_DIR`            | l4d2          | `HOME` 下的安装子目录                             |
+| `GAME_NAME`              | left4dead2    | 游戏目录名（用于 `-game` 参数和插件路径）         |
+| `GAME_ID`                | 222860        | 游戏服务器的 Steam AppID                          |
+| `INSTALL_PLUGINS`        | true          | 首次启动时自动安装插件（`true` / `false`）        |
+| `PORT`                   | 27015         | 游戏服务器端口（TCP/UDP）                         |
+| `IP`                     | 0.0.0.0       | 绑定 IP 地址                                      |
+| `CLOCK_CORRECTION_MSECS` | 20            | `+sv_clockcorrection_msecs` 启动参数              |
+| `TIMEOUT`                | 10            | 连接超时秒数（`-timeout`）                        |
+| `TICKRATE`               | 100           | 服务器刷新率（如更改需修改 server.cfg）           |
+| `EXEC_CFG`               | server.cfg    | 要执行的服务器配置文件（`+exec`）                 |
+| `MAXPLAYERS`             | -             | 最大玩家数（未设置或 <= 0 时不传）                |
+| `DEFAULT_MAP`            | c2m1_highway  | 默认地图                                          |
+| `TZ`                     | Asia/Shanghai | 时区                                              |
+| `SSH_PUBLIC_KEY`         | -             | 你的 SSH 公钥（启用后可用 `louis` 用户 SSH 登录） |
+| `SSH_PORT`               | 22            | SSH 服务端口（启动时写入 sshd_config）            |
 
 > **时区在容器启动时生效。** `entrypoint.sh` 每次启动时读取环境变量 `TZ`
 > （来自 `.env`），并设置 `/etc/timezone` 与 `/etc/localtime`。无需重建镜像

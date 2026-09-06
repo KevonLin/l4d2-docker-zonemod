@@ -31,6 +31,13 @@ COPY --chmod=755 restart.sh /usr/local/bin/
 WORKDIR /home/louis
 USER root
 
+# Default to UTF-8 so the Source engine's setlocale("en_US.UTF-8") call succeeds
+# (the locale is generated in as-root.sh) and international characters work in
+# chat/names. steamcmd and git also behave consistently under UTF-8.
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
 EXPOSE 27015/tcp 27015/udp 22/tcp
 VOLUME ["/home/louis"]
 

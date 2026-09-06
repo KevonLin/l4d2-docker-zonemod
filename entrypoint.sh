@@ -8,6 +8,8 @@ set -e
 : "${GAME_ID:=222860}"
 : "${INSTALL_PLUGINS:=true}"
 : "${SSH_PORT:=22}"
+: "${LANG:=en_US.UTF-8}"
+: "${LC_ALL:=en_US.UTF-8}"
 
 # The image is deliberately timezone-agnostic: the timezone is applied at
 # container startup from the live environment ("TZ" env var). Setting it
@@ -59,7 +61,7 @@ fi
 GAME_ROOT="${HOME}/${INSTALL_DIR}"
 PLUGIN_DIR="${GAME_ROOT}/${GAME_NAME}"
 
-export HOME INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR TZ
+export HOME INSTALL_DIR GAME_NAME GAME_ID INSTALL_PLUGINS GAME_ROOT PLUGIN_DIR TZ LANG LC_ALL
 
 # Everything below runs as the unprivileged "louis" user, after the plugin
 # installer and the game installer have finished. install-plugins.sh and

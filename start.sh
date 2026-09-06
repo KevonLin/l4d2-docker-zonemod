@@ -21,7 +21,7 @@ set -euo pipefail
 : "${DEFAULT_MAP:=c2m1_highway}"
 : "${PORT:=27015}"
 : "${IP:=0.0.0.0}"
-: "${CLOCK_CORRECTION_MSECS:=25}"
+: "${CLOCK_CORRECTION_MSECS:=20}"
 : "${TIMEOUT:=10}"
 : "${TICKRATE:=100}"
 : "${EXEC_CFG:=server.cfg}"

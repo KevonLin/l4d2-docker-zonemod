@@ -1,6 +1,6 @@
 # Left 4 Dead 2 Server Docker Deployment Guide
 
-## English | [简体中文](./README-zh.md)
+## English | [简体中文](https://github.com/KevonLin/l4d2-docker-zonemod/blob/master/README-zh.md)
 
 ## Project Overview
 
@@ -37,7 +37,7 @@ Key design choices:
 
 ## File Structure
 
-```
+```text
 .
 ├── as-root.sh            # Build-time system setup (root, run inside Dockerfile)
 ├── as-user.sh            # Game installer - runs at container startup
@@ -79,24 +79,24 @@ docker compose up -d
 
 All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 
-| Variable                    | Default       | Description                                                          |
-| --------------------------- | ------------- | -------------------------------------------------------------------- |
-| `HOME`                      | /home/louis   | Base directory for the game user (`louis`)                           |
-| `INSTALL_DIR`               | l4d2          | Install subdirectory under `HOME`                                    |
-| `GAME_NAME`                 | left4dead2    | Game directory name (used for the `-game` and plugin path)           |
-| `GAME_ID`                   | 222860        | Steam AppID of the game server                                       |
-| `INSTALL_PLUGINS`           | true          | Auto-install plugins on first start (`true` / `false`)               |
-| `PORT`                      | 27015         | Game server port (TCP/UDP)                                           |
-| `IP`                        | 0.0.0.0       | Bind IP address                                                      |
-| `CLOCK_CORRECTION_MSECS`    | 25            | `+sv_clockcorrection_msecs` startup value                            |
-| `TIMEOUT`                   | 10            | Connection timeout in seconds (`-timeout`)                           |
-| `TICKRATE`                  | 100           | Server tickrate (needs `server.cfg` adjustment if changed)           |
-| `EXEC_CFG`                  | server.cfg    | Config file to execute (`+exec`)                                     |
-| `MAXPLAYERS`                | -             | Maximum players (omitted if unset or <= 0)                           |
-| `DEFAULT_MAP`               | c2m1_highway  | Default map                                                          |
-| `TZ`                        | Asia/Shanghai | Timezone                                                             |
-| `SSH_PUBLIC_KEY`            | -             | Your SSH public key (enables SSH login as `louis`)                   |
-| `SSH_PORT`                  | 22            | SSH server port (applied to sshd_config at startup)                  |
+| Variable                 | Default       | Description                                                |
+| ------------------------ | ------------- | ---------------------------------------------------------- |
+| `HOME`                   | /home/louis   | Base directory for the game user (`louis`)                 |
+| `INSTALL_DIR`            | l4d2          | Install subdirectory under `HOME`                          |
+| `GAME_NAME`              | left4dead2    | Game directory name (used for the `-game` and plugin path) |
+| `GAME_ID`                | 222860        | Steam AppID of the game server                             |
+| `INSTALL_PLUGINS`        | true          | Auto-install plugins on first start (`true` / `false`)     |
+| `PORT`                   | 27015         | Game server port (TCP/UDP)                                 |
+| `IP`                     | 0.0.0.0       | Bind IP address                                            |
+| `CLOCK_CORRECTION_MSECS` | 25            | `+sv_clockcorrection_msecs` startup value                  |
+| `TIMEOUT`                | 10            | Connection timeout in seconds (`-timeout`)                 |
+| `TICKRATE`               | 100           | Server tickrate (needs `server.cfg` adjustment if changed) |
+| `EXEC_CFG`               | server.cfg    | Config file to execute (`+exec`)                           |
+| `MAXPLAYERS`             | -             | Maximum players (omitted if unset or <= 0)                 |
+| `DEFAULT_MAP`            | c2m1_highway  | Default map                                                |
+| `TZ`                     | Asia/Shanghai | Timezone                                                   |
+| `SSH_PUBLIC_KEY`         | -             | Your SSH public key (enables SSH login as `louis`)         |
+| `SSH_PORT`               | 22            | SSH server port (applied to sshd_config at startup)        |
 
 > **Timezone is applied at container startup.** `entrypoint.sh` reads the `TZ`
 > environment variable (from `.env`) and sets `/etc/timezone` +

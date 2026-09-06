@@ -19,7 +19,7 @@ cd "${HOME}"
 mkdir -p ".steam/sdk32"
 
 if [ -f "./linux32/steamclient.so" ]; then
-    ln -sf "./linux32/steamclient.so" "${HOME}/.steam/sdk32/steamclient.so"
+    ln -sf "${HOME}/linux32/steamclient.so" "${HOME}/.steam/sdk32/steamclient.so"
 fi
 
 if [ ! -f steamcmd.sh ]; then

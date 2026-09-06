@@ -88,7 +88,7 @@ All settings are defined in the `.env` file (loaded by `docker-compose.yml`).
 | `INSTALL_PLUGINS`        | true          | Auto-install plugins on first start (`true` / `false`)     |
 | `PORT`                   | 27015         | Game server port (TCP/UDP)                                 |
 | `IP`                     | 0.0.0.0       | Bind IP address                                            |
-| `CLOCK_CORRECTION_MSECS` | 25            | `+sv_clockcorrection_msecs` startup value                  |
+| `CLOCK_CORRECTION_MSECS` | 20            | `+sv_clockcorrection_msecs` startup value                  |
 | `TIMEOUT`                | 10            | Connection timeout in seconds (`-timeout`)                 |
 | `TICKRATE`               | 100           | Server tickrate (needs `server.cfg` adjustment if changed) |
 | `EXEC_CFG`               | server.cfg    | Config file to execute (`+exec`)                           |

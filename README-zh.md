@@ -82,7 +82,7 @@ docker compose up -d
 | `INSTALL_PLUGINS`        | true          | 首次启动时自动安装插件（`true` / `false`）        |
 | `PORT`                   | 27015         | 游戏服务器端口（TCP/UDP）                         |
 | `IP`                     | 0.0.0.0       | 绑定 IP 地址                                      |
-| `CLOCK_CORRECTION_MSECS` | 25            | `+sv_clockcorrection_msecs` 启动参数              |
+| `CLOCK_CORRECTION_MSECS` | 20            | `+sv_clockcorrection_msecs` 启动参数              |
 | `TIMEOUT`                | 10            | 连接超时秒数（`-timeout`）                        |
 | `TICKRATE`               | 100           | 服务器刷新率（如更改需修改 server.cfg）           |
 | `EXEC_CFG`               | server.cfg    | 要执行的服务器配置文件（`+exec`）                 |

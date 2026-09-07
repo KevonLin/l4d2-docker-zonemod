@@ -1,4 +1,4 @@
-FROM ubuntu:22.04 AS base
+FROM ubuntu:24.04 AS base
 
 USER root
 
@@ -21,12 +21,22 @@ FROM base AS game
 COPY --chmod=755 as-user.sh /usr/local/bin/
 COPY --chmod=755 entrypoint.sh /usr/local/bin/
 COPY --chmod=755 install-plugins.sh /usr/local/bin/
+COPY --chmod=755 start.sh /usr/local/bin/
+COPY --chmod=755 stop.sh /usr/local/bin/
+COPY --chmod=755 restart.sh /usr/local/bin/
 
 # Start the entrypoint as root so it can set the timezone from the live
 # environment at startup, then drop to the unprivileged "louis" user via
 # gosu. The image itself stays timezone-agnostic.
 WORKDIR /home/louis
 USER root
+
+# Default to UTF-8 so the Source engine's setlocale("en_US.UTF-8") call succeeds
+# (the locale is generated in as-root.sh) and international characters work in
+# chat/names. steamcmd and git also behave consistently under UTF-8.
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
 EXPOSE 27015/tcp 27015/udp 22/tcp
 VOLUME ["/home/louis"]

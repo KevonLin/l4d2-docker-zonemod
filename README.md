@@ -33,7 +33,10 @@ Key design choices:
    - (as `louis`) runs `install-plugins.sh` to install plugins into the game
      directory on first run (unless `INSTALL_PLUGINS=false`);
    - runs `as-user.sh` to install/update the game via SteamCMD;
-   - launches `srcds_run` with your settings.
+   - launches the game server through `start.sh` and supervises it: `srcds`
+     runs as a background daemon, its console is streamed to `docker logs`,
+     and it is restarted automatically after a crash. You can also stop or
+     restart it on the fly with `stop.sh` / `restart.sh`.
 
 ## File Structure
 
@@ -41,11 +44,17 @@ Key design choices:
 .
 ├── as-root.sh            # Build-time system setup (root, run inside Dockerfile)
 ├── as-user.sh            # Game installer - runs at container startup
-├── entrypoint.sh         # Container entrypoint (plugins + game)
+├── entrypoint.sh         # Container entrypoint (plugins + game + supervisor)
 ├── install-plugins.sh    # Plugin installer - runs at container startup
+├── start.sh              # Starts srcds as a daemon (installed to /usr/local/bin)
+├── stop.sh               # Gracefully stops srcds
+├── restart.sh            # Restarts srcds in the same container
 ├── docker-compose.yml    # Deployment with Docker named volumes (the default file)
-├── .env                  # All runtime configuration
+├── .env.example          # All runtime configuration template (copy to .env)
 ├── build-l4d2.sh         # Docker image build helper
+├── Makefile              # Local CI targets: `make ci` / `make ci-full`
+├── setup-hooks.sh        # Installs a git pre-push hook that runs `make ci`
+├── .scripts              # Local CI script mirroring .github/workflows/ci.yml
 └── README.md             # This file
 ```
 
@@ -72,6 +81,59 @@ docker compose up -d
 > **Note:** The game is **not** in the image. On the first container start,
 > `as-user.sh` downloads and installs L4D2 via SteamCMD (slow, needs a stable
 > network). Later starts only update/validate the existing install.
+
+## Server management (inside the container)
+
+The management scripts are installed at `/usr/local/bin/` in the image and can
+be used over SSH (as `louis`) or with `docker exec`:
+
+```bash
+docker exec l4d2 /usr/local/bin/restart.sh   # restart the game server
+docker exec l4d2 /usr/local/bin/stop.sh      # stop the game server
+docker exec l4d2 /usr/local/bin/start.sh     # (re)start the game server
+```
+
+- `start.sh` runs `srcds_run` as a background daemon; its state (PID file,
+  console log, control file) lives in `{HOME}/.l4d2/`. `entrypoint.sh` calls
+  it on every container start.
+- `entrypoint.sh` keeps the container alive, streams the console to
+  `docker logs`, and restarts the server automatically when it crashes
+  (with a short backoff; it gives up after repeated fast crashes).
+- `restart.sh` restarts the server **in the same container** — no recreation,
+  SSH sessions stay up.
+- `stop.sh` stops the server and shuts the container down. Because
+  `docker-compose.yml` uses `restart: unless-stopped`, use `docker compose
+  stop` to keep the server down for good.
+
+## Local development & CI
+
+Contributors can run the same validation as
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) locally — no GitHub
+Actions needed:
+
+```bash
+make ci            # quick checks: YAML lint, shell syntax, Dockerfile static
+                   # check, external-URL reachability, .env.example validation,
+                   # cross-file consistency (no download)
+make ci-full       # quick checks + full image build (downloads the env)
+```
+
+Or run the script directly:
+
+```bash
+./.scripts/local-ci.sh          # quick checks
+./.scripts/local-ci.sh --full   # full image build
+```
+
+To run the quick checks automatically before every `git push`, install the
+bundled pre-push hook:
+
+```bash
+./setup-hooks.sh
+```
+
+The hook is installed only into your local clone's `.git/hooks/` directory and
+is never shared with other contributors.
 
 ## Configuration
 
@@ -139,6 +201,9 @@ installation entirely.
 - **SSH:** optional. Set `SSH_PUBLIC_KEY` to log in as `louis` (password auth
   is disabled) and `SSH_PORT` to choose its port (default 22). Both apply at
   startup; no rebuild needed.
+- **Crash recovery:** `srcds` is supervised — unexpected exits are restarted
+  automatically with a short backoff, and `restart.sh` / `stop.sh` manage the
+  server without recreating the container.
 - **Permissions:** `louis` owns everything under `${HOME}`, so SSH uploads
   to those directories need no manual `chown`.
 - **Compliance:** respect Steam/Valve ToS. For personal or community servers only.
